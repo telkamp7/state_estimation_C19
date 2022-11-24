@@ -1,10 +1,27 @@
 # Load libraries
 library(readr)
 library(glmmTMB)
+library(tidyr)
+library(dplyr)
 
 # Load processed data 
 newly_admitted <- read_rds(file = "./data/processed/processed_data.rds")
 
+
+
+test <- newly_admitted %>%
+  select(Dato:`Ukendt Region`, time) %>%
+  pivot_longer(cols = Hovedstaden:`Ukendt Region`, names_to = "region", values_to = "count") %>%
+  mutate(region = as.factor(region))
+
+m1 <- glmmTMB(formula = count ~ ar1(time | region),
+              family = poisson(link = "log"),
+              data = test)
+summary(m1)
+
+m1$sdr
+
+plot(resid(m1))
 
 # 
 newly_admitted
