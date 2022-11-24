@@ -2,7 +2,7 @@
 library(rvest)
 
 # Extract raw files to destination
-exdir_raw <- "C:/GIT/state_estimation_C19/data/raw/"
+exdir_raw <- "./data/raw/"
 
 # URL for the data page
 rvest_url <- "https://covid19.ssi.dk/overvagningsdata/download-fil-med-overvaagningdata"

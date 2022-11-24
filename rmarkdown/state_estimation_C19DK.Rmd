@@ -1,0 +1,61 @@
+---
+title: "State estimation of Covid-19 disease in Denmark"
+author: "Kasper Schou Telkamp"
+date: "2022-11-24"
+output:
+  bookdown::pdf_document2:
+    number_sections: false
+    toc: true
+    extra_dependencies: ["amsmath", "float", "subfig"]
+editor_options: 
+  chunk_output_type: console
+bibliography: C:/GIT/state_estimation_C19/references/bibliography.bib
+csl: C:/GIT/state_estimation_C19/references/apa.csl
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+\newpage
+
+# Introduction
+
+Write it later
+
+# Materials and method
+
+## Data
+
+In this project, the daily record of new hospital admissions grouped by region of residence in Denmark are used. The data is publicly available and were obtained on Statens Serum Institut website^[https://covid19.ssi.dk/overvagningsdata/download-fil-med-overvaagningdata]. In Figure \@ref(fig:admissionsReg)
+
+```{r admissionsReg, echo=FALSE, fig.cap="New hospital admissions grouped by region of residence in Denmark."}
+knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/newly_admitted_regions.png")
+```
+
+
+
+
+## Generalized linear mixed effect model
+
+Consider a hierarchical model for Y specified by
+
+\begin{subequations}
+\begin{align}
+  Y \sim \mathrm{Pois}(\lambda) \\
+  \log(\lambda)=\mathbf{X}\mathbf{\beta}+u
+\end{align}
+\end{subequations}
+
+where $u \sim\mathrm{N}\big(0,\Sigma(\psi)\big)$.
+
+
+
+
+Seen in this book @db04e22a86244ea0b54e3284c326ef8c or in this package @glmmTMB
+
+
+# References
+
+<div id="refs"></div>

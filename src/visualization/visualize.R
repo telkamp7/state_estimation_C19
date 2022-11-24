@@ -5,7 +5,7 @@ library(dplyr)
 library(ggplot2)
 
 # Load processed data
-newly_admitted <- read_rds(file = "C:/GIT/state_estimation_C19/data/processed/processed_data.rds")
+newly_admitted <- read_rds(file = "./data/processed/processed_data.rds")
 
 # Number of admissions separated into regions
 newly_admitted %>%
@@ -18,7 +18,7 @@ newly_admitted %>%
   facet_wrap(facets = vars(Region), nrow = 2, ncol = 3) +
   labs(x = "Date", y = "Newly admitted [#]") +
   theme_bw()
-ggsave(filename = "C:/GIT/state_estimation_C19/reports/figures/newly_admitted_regions.png",
+ggsave(filename = "./reports/figures/newly_admitted_regions.png",
        dpi = "retina", width = 12, height = 8, units = "in")
 
 # Number of admissions in total
@@ -27,6 +27,6 @@ newly_admitted %>%
   geom_line() +
   labs(x = "Date", y = "Newly admitted [#]") +
   theme_bw()
-ggsave(filename = "C:/GIT/state_estimation_C19/reports/figures/newly_admitted_total.png",
+ggsave(filename = "./reports/figures/newly_admitted_total.png",
        dpi = "retina", width = 8, height = 8, units = "in")
 
