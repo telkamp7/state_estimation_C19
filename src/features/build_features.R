@@ -10,7 +10,7 @@ spec(newly_admitted)
 
 # Add time column
 newly_admitted <- newly_admitted %>%
-  mutate(time = factor(x = 1:n(), levels = 1:n()))
+  mutate(drift = factor(x = 1:n(), levels = 1:n()))
 
 # Add group
 newly_admitted <- newly_admitted %>%

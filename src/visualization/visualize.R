@@ -9,12 +9,12 @@ newly_admitted <- read_rds(file = "./data/processed/processed_data.rds")
 
 # Number of admissions separated into regions
 newly_admitted %>%
-  select(-Total) %>%
+  select(-c(Total,drift,group)) %>%
   pivot_longer(cols = -1,
                names_to = "Region",
                values_to = "Admissions") %>%
   ggplot(mapping = aes(x = Dato, y = Admissions)) +
-  geom_line() +
+  geom_point() +
   facet_wrap(facets = vars(Region), nrow = 2, ncol = 3) +
   labs(x = "Date", y = "Newly admitted [#]") +
   theme_bw()
@@ -24,9 +24,9 @@ ggsave(filename = "./reports/figures/newly_admitted_regions.png",
 # Number of admissions in total
 newly_admitted %>%
   ggplot(mapping = aes(x = Dato, y = Total)) +
-  geom_line() +
+  geom_point() +
   labs(x = "Date", y = "Newly admitted [#]") +
   theme_bw()
 ggsave(filename = "./reports/figures/newly_admitted_total.png",
-       dpi = "retina", width = 8, height = 8, units = "in")
+       dpi = "retina", width = 8, height = 4, units = "in")
 
