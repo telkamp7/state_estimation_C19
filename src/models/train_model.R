@@ -4,51 +4,19 @@ library(KFAS)
 library(glmmTMB)
 library(tidyr)
 library(dplyr)
+library(Matrix)
 
 # Load processed data 
 newly_admitted <- read_rds(file = "./data/processed/processed_data.rds")
 
-
+#### Total ####
 # glmmTMB
-test.glmmTMB <- glmmTMB(formula = Total ~  diag(drift + 0| group),
-                        family = poisson(link = "log"),
-                        data = newly_admitted)
-
-fixef(test.glmmTMB)
-ranef.test <- ranef(object = test.glmmTMB)
-plot(newly_admitted$drift, ranef.test$cond$group, type = "l")
-
-plot(newly_admitted$Total)
-lines(exp(predict(test.glmmTMB)), col = "red")
-
-plot(residuals(test.glmmTMB))
-acf(residuals(test.glmmTMB))
-
 m1.glmmTMB <- glmmTMB(formula = Total ~ -1 + ar1(drift + 0 | group),
                       family = poisson(link = "log"),
                       data = newly_admitted)
-fixef(object = m1.glmmTMB)
-ranef.glmmTMB <- ranef(object = m1.glmmTMB)
-
-
-plot(newly_admitted$drift, ranef.glmmTMB$cond$group, type = "l")
-
-plot(newly_admitted$Total)
-lines(exp(predict(m1.glmmTMB)), col = "red")
-
-plot(residuals(m1.glmmTMB))
-acf(residuals(m1.glmmTMB))
-
-
-### Profile likelihood
-pl <- profile(fitted = m1.glmmTMB, parm = 1, trace = 1)
-library(ggplot2)
-ggplot(data = pl, mapping = aes(x = .focal, y = sqrt(value))) +
-  geom_point() +
-  geom_line() +
-  facet_wrap(~.par, scale = "free_x") +
-  geom_hline(yintercept = 1.96, linetype = 2)
-
+write_rds(x = m1.glmmTMB, 
+          file = "./src/models/m1.glmmTMB.rds", 
+          compress = "xz")
 
 ## KFAS
 Zt <- matrix(c(1,0), 1, 2)
@@ -56,63 +24,136 @@ Tt <- matrix(c(1,0,1,1), 2, 2)
 Rt <- matrix(c(1,0), 2, 1)
 Qt <- matrix(NA)
 P1inf <- diag(2)
-
-test.KFAS <- SSModel(formula = Total ~ -1 +
+mod1.KFAS <- SSModel(formula = Total ~ -1 +
                        SSMcustom(Z = Zt, T = Tt, R = Rt, Q = Qt, P1inf = P1inf),
                      distribution = "poisson", data = newly_admitted)
-test.fit <- fitSSM(test.KFAS, inits = c(1), method = "BFGS")
-out.fit <- KFS(test.fit$model)
-
-ranef.KFAS <- coef(out.fit)[,1]
-
-lines(coef(out.fit)[,1], col = "red")
-
-par(mfrow = c(1,1))
-
-plot(unlist(ranef.glmmTMB$cond$group)-ranef.KFAS)
+m1.KFAS <- fitSSM(mod1.KFAS, inits = c(1), method = "BFGS")
+write_rds(x = m1.KFAS,
+          file = "./src/models/m1.KFAS.rds",
+          compress = "xz")
 
 
+#### Grouped by region ####
+
+regional_newly_admitted <- read_rds(file = "./data/processed/processed_regional_data.rds")
 
 
-m1.KFAS <- SSModel(formula = Total ~ drift + SSMarima(ar = 0, Q = 1), data = newly_admitted)
+# glmmTMB
+m2.glmmTMB <- glmmTMB(formula = count ~ -1 + region + ar1(drift  + 0| region),
+                      family = poisson(link = "log"),
+                      data = regional_newly_admitted)
+write_rds(x = m2.glmmTMB,
+          file = "./src/models/m2.glmmTMB.rds",
+          compress = "xz")
 
-obj <- function(pars, model, estimate = TRUE){
-  armod <- try(SSMarima(ar = artransform(pars[1]), Q = exp(pars[2])), silent = TRUE)
-  if(class(armod) == "try-error"){
-    return(Inf)
-  } else {
-    model["T", states = "arima"] <- armod$T
-    model["Q", states = "arima"] <- armod$Q
-    model["P1", states = "arima"] <- armod$P1
-    if(estimate){
-      -logLik(model)
-    } else {
-      model
-    }
-  }
+# KFAS
+
+count_split <- split(regional_newly_admitted$count, regional_newly_admitted$region)
+
+p <- length(count_split)
+
+count <- matrix(unlist(count_split), ncol = p,
+            dimnames = list(NULL, names(count_split)))
+
+dataf <- split(regional_newly_admitted, regional_newly_admitted$region)
+
+mod2.KFAS <- SSModel(formula = count ~ -1 +
+                       SSMregression(rformula = rep(list(~ region),p),
+                                     remove.intercept = FALSE,
+                                     type = "common",
+                                     data = dataf) +
+                       SSMarima(ar = artransform(1)),
+                     distribution = "poisson")
+
+m2.KFAS <- fitSSM(model = mod2.KFAS,
+                  inits = rep(1, p+1),
+                  method = "BFGS")
+
+write_rds(x = m2.KFAS,
+          file = "./src/models/m2.KFAS.rds",
+          compress = "xz")
+
+
+tmp <- predict(m2.KFAS$model)
+matplot(coef(object = KFS(model = m2.KFAS$model))[,7:12])
+plot(tmp$Hovedstaden)
+colMeans(count)
+
+
+# P1 <- as.matrix(.bdiag(replicate(p, matrix(NA, 6, 6), simplify = FALSE)))
+
+mod2.KFAS <- SSModel(formula = y ~ -1 + 
+                       SSMregression(rep(list(~ region), p), type = "common", remove.intercept = FALSE, data = dataf) +
+                       SSMarima(ar = 0, Q = diag(1, p)),
+                     H = diag(NA, p))
+
+update_mod2_KFAS <- function(pars, model){
+  tmp <- SSMarima(ar = artransform(pars[1:p]), Q = diag(exp(pars[7+1:p]),p))
+  model["R", states = "arima"] <- tmp$R
+  model["Q", states = "arima"] <- tmp$Q
+  model["P1", states = "arima"] <- tmp$P1
+  model["H"] <- diag(exp(pars[13+1:p]), p)
+  model
 }
 
+m2.KFAS <- fitSSM(model = mod2.KFAS,
+                  inits = rep(1,p),
+                  updatefn = update_mod2_KFAS,
+                  method = "BFGS")
+summary(m2.KFAS)
+coef(object = m2.KFAS$model)
 
-fit <- optim(p = c(0.5, 1), fn = obj, model = m1.KFAS, method = "BFGS")
-
-fit.KFAS <- fitSSM(model = m1.KFAS, inits = c(0, 1), updatefn = update_model,
-                   method = "L-BFGS-B", lower = c(-1,0), upper = c(1, 100))
 
 
+Zt <- diag(1,6)
+Tt <- diag(0,6)
+Qt <- matrix(NA, 6, 6)
+P1inf <- matrix(NA, 6 , 6)
 
-test <- newly_admitted %>%
-  select(Dato:`Ukendt Region`, drift) %>%
-  pivot_longer(cols = Hovedstaden:`Ukendt Region`, names_to = "region", values_to = "count") %>%
-  mutate(region = as.factor(region))
+admissions <- newly_admitted  %>%
+  select(Hovedstaden:`Ukendt Region`)
+as.matrix(admissions)
+mod2.KFAS <- SSModel(formula = as.matrix(admissions) ~ - 1 +
+                      SSMcustom(Z = Zt, T = Tt, Q = Qt, P1 = P1inf),
+                   distribution = "poisson")
 
-m1 <- glmmTMB(formula = count ~ region + ar1(drift  + 0| region),
-              family = poisson(link = "log"),
-              data = test)
-summary(m1)
+updatefn <- function(pars, model){
+  Q <- diag(exp(pars[1:6]))
+  Q[upper.tri(Q)] <- pars[7:21]
+  model["Q", etas = "level"] <- crossprod(Q)
+  Q <- diag(exp(pars[22:27]))  
+  Q[upper.tri(Q)] <- pars[28:42]
+  model["Q", etas = "custom"] <- model["P1", states = "custom"] <- crossprod(Q)
+  model
+}
 
-tmp <- ranef(m1)
+m2.KFAS <- fitSSM(model = mod2.KFAS,
+                  inits = rep(0, 42),
+                  updatefn = updatefn,
+                  method = "BFGS")
 
-str(tmp)
+
+
+diag(1:6)
+
+
+init <- log(cov(as.matrix(admissions)))
+
+m2.KFAS <- fitSSM(model = mod2.KFAS,
+                  inits = rep(c(log(diag(init)), init[upper.tri(init)]),2),
+                  method = "BFGS")
+
+
+
+data("alcohol")
+
+alcohol[, 1:4]
+alcoholPred <- window(alcohol, start = 1969, end = 2007)
+init <- chol(cov(log(alcoholPred[, 1:4] / alcoholPred[5:8]))/ 10)
+plot(exp(tmp))
+
+
+
 
 plot(tmp[[1]]$region)
 
@@ -153,3 +194,47 @@ m2 <- update(m1, formula. = Total ~ Dato)
 
 plot(resid(m2))
 
+
+
+# m1.KFAS <- SSModel(formula = Total ~ drift + SSMarima(ar = 0, Q = 1), data = newly_admitted)
+# 
+# obj <- function(pars, model, estimate = TRUE){
+#   armod <- try(SSMarima(ar = artransform(pars[1]), Q = exp(pars[2])), silent = TRUE)
+#   if(class(armod) == "try-error"){
+#     return(Inf)
+#   } else {
+#     model["T", states = "arima"] <- armod$T
+#     model["Q", states = "arima"] <- armod$Q
+#     model["P1", states = "arima"] <- armod$P1
+#     if(estimate){
+#       -logLik(model)
+#     } else {
+#       model
+#     }
+#   }
+# }
+# test.glmmTMB <- glmmTMB(formula = Total ~  diag(drift + 0| group),
+#                         family = poisson(link = "log"),
+#                         data = newly_admitted)
+# 
+# fixef(test.glmmTMB)
+# ranef.test <- ranef(object = test.glmmTMB)
+# plot(newly_admitted$drift, ranef.test$cond$group, type = "l")
+# 
+# plot(newly_admitted$Total)
+# lines(exp(predict(test.glmmTMB)), col = "red")
+# 
+# plot(residuals(test.glmmTMB))
+# acf(residuals(test.glmmTMB))
+# data("alcohol")
+# 
+# deaths <- window(alcohol[, 2], end = 2007)
+# population <- window(alcohol[, 6], end = 2007)
+# ### Profile likelihood
+# pl <- profile(fitted = m1.glmmTMB, parm = 1, trace = 1)
+# library(ggplot2)
+# ggplot(data = pl, mapping = aes(x = .focal, y = sqrt(value))) +
+#   geom_point() +
+#   geom_line() +
+#   facet_wrap(~.par, scale = "free_x") +
+#   geom_hline(yintercept = 1.96, linetype = 2)

@@ -88,6 +88,33 @@ This section describes the R package `glmmTMB` by @glmmTMB for linear and genera
 This section goes into detail with the R package `KFAS` by @KFAS for state space modelling with observations from the exponential family. 
 
 
+# Results
+
+## Estimating the total number of new hospital admissions in Denmark
+
+In Figure \@ref(fig:admittedPred) the total number of new hospitals admissions in Denmark is visualized together with the smoothed estimates from `glmmTMB` and `KFAS`.
+
+```{r admittedPred, echo=FALSE, fig.cap="Total number of new hospital admissions in Denmark with smoothed estimates from glmmTMB and KFAS."}
+knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/admitted_pred_plot.png")
+```
+
+In Figure \@ref(fig:latentState) the estimated latent intensity from `glmmTMB` and `KFAS` is visualized.
+
+```{r latentState, echo=FALSE, fig.cap="Estimated latent intensity from glmmTMB and KFAS."}
+knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/latent_state_plot.png")
+```
+
+## Estimating the number of new hospital admissions in Denmark grouped by region
+
+In Figure \@ref(fig:admittedRegPred) the total number of new hospitals admissions in Denmark grouped by region is visualized together with the smoothed estimates from `glmmTMB` and `KFAS`.
+
+```{r admittedRegPred, echo=FALSE, fig.cap="Total number of new hospital admissions in Denmark grouped by region with smoothed estimates from glmmTMB and KFAS."}
+knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/admitted_reg_pred_plot.png")
+```
+
+# Discussion
+
+Write it later
 
 
 # References
