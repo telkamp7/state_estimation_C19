@@ -1,4 +1,6 @@
 # Load libraries
+library(broom)
+library(broom.mixed)
 library(readr)
 library(KFAS)
 library(glmmTMB)
@@ -7,6 +9,8 @@ library(dplyr)
 library(purrr)
 library(ggplot2)
 library(RColorBrewer)
+library(purrr)
+library(dotwhisker)
 
 # Load processed data
 newly_admitted <- read_rds(file = "./data/processed/processed_data.rds")
@@ -50,6 +54,8 @@ ggsave(plot = admitted_pred_plot,
        filename = "./reports/figures/admitted_pred_plot.png",
        dpi = "retina", width = 8, height = 4, units = "in")
 
+# Random effects
+
 ranef.mod <- newly_admitted %>%
   mutate(glmmTMB = unlist(ranef(object = m1.glmmTMB)$cond$group),
          KFAS = coef(object = KFS(model = m1.KFAS$model))[,1]) %>%
@@ -65,18 +71,31 @@ ggsave(plot = latent_state_plot,
        filename = "./reports/figures/latent_state_plot.png",
        dpi = "retina", width = 8, height = 4, units = "in")
 
-
-
 # Regional
 m2.glmmTMB <- read_rds(file = "./src/models/m2.glmmTMB.rds")
 m2.KFAS <- read_rds(file = "./src/models/m2.KFAS.rds")
 
-tmp <- predict(object = m2.KFAS$model)
+dates <- regional_newly_admitted$Dato
 
-regional_pred <- regional_newly_admitted %>%
+reg_pred_KFAS <- predict(object = m2.KFAS$model)
+
+regional_pred_KFAS <- reg_pred_KFAS %>%
+  map_dfr(~ .x %>% as_tibble(), .id = "region") %>%
+  rename(count = fit) %>%
+  mutate(Dato = rep(unique(dates),6), Model = "KFAS") %>% 
+  select(Dato, region, Model, count)
+
+regional_pred_glmmTMB <- regional_newly_admitted %>%
   select(Dato, region) %>%
   mutate(glmmTMB = exp(predict(m2.glmmTMB))) %>%
   pivot_longer(cols = c(glmmTMB), names_to = "Model", values_to = "count")
+
+regional_pred <- bind_rows(regional_pred_KFAS, regional_pred_glmmTMB)
+
+test <- regional_pred %>%
+  pivot_wider(names_from = c(region, Model),
+              names_sep = ".",
+              values_from = count)
 
 admitted_reg_pred_plot <- admitted_reg_plot +
   geom_line(data = regional_pred, mapping = aes(x = Dato, y = count, colour = Model, linetype = Model), size = .8) +
@@ -86,13 +105,15 @@ ggsave(plot = admitted_reg_pred_plot,
        filename = "./reports/figures/admitted_reg_pred_plot.png",
        dpi = "retina", width = 12, height = 8, units = "in")
 
+# Random effects
 
+test <- t(ranef(object = m2.glmmTMB)$cond$region)
 
+ranef.mod <- newly_admitted %>%
+  mutate(glmmTMB = unlist(ranef(object = m2.glmmTMB)$cond$Hovedstaden)) %>%
+  select(Dato, glmmTMB) %>%
+  pivot_longer(cols = -Dato, names_to = "Model", values_to = "Ranef")
 
-
-
-
-  
 
 
 

@@ -1,4 +1,4 @@
-@book{db04e22a86244ea0b54e3284c326ef8c,
+@book{glmm,
 title = "Introduction to general and generalized linear models",
 author = "Henrik Madsen and Poul Thyregod",
 year = "2011",
@@ -6,6 +6,17 @@ language = "English",
 isbn = "9781420091557",
 series = "Texts in statistical science",
 publisher = "CRC Press",
+}
+
+@book{TSA,
+title = "Time series analysis",
+abstract = "With a focus on analyzing and modeling linear dynamic systems using statistical methods, Time Series Analysis formulates various linear models, discusses their theoretical characteristics, and explores the connections among stochastic dynamic models. Emphasizing the time domain description, the author presents theorems to highlight the most",
+author = "Henrik Madsen",
+year = "2007",
+doi = "10.1201/9781420059687",
+language = "English",
+isbn = "9780429195839",
+publisher = "Chapman & Hall",
 }
 
 @Article{glmmTMB,
@@ -32,3 +43,36 @@ publisher = "CRC Press",
     pages = {1--39},
     doi = {10.18637/jss.v078.i10},
   }
+
+@Article{Chan,
+ ISSN = {01621459},
+ URL = {http://www.jstor.org/stable/2291149},
+ abstract = {The observations in parameter-driven models for time series of counts are generated from latent unobservable processes that characterize the correlation structure. These models result in very complex likelihoods, and even the EM algorithm, which is usually well suited for problems of this type, involves high-dimensional integration. In this article we discuss a Monte Carlo EM (MCEM) algorithm that uses a Markov chain sampling technique in the calculation of the expectation in the E step of the EM algorithm. We propose a stopping criterion for the algorithm and provide rules for selecting the appropriate Monte Carlo sample size. We show that under suitable regularity conditions, an MCEM algorithm will, with high probability, get close to a maximizer of the likelihood of the observed data. We also discuss the asymptotic efficiency of the procedure. We illustrate our Monte Carlo estimation method on a time series involving small counts: the polio incidence time series previously analyzed by Zeger.},
+ author = {K. S. Chan and Johannes Ledolter},
+ journal = {Journal of the American Statistical Association},
+ number = {429},
+ pages = {242--252},
+ publisher = {[American Statistical Association, Taylor & Francis, Ltd.]},
+ title = {Monte Carlo EM Estimation for Time Series Models Involving Counts},
+ urldate = {2022-12-10},
+ volume = {90},
+ year = {1995}
+}
+
+@article{Zeger,
+ ISSN = {00063444},
+ URL = {http://www.jstor.org/stable/2336303},
+ abstract = {This paper discusses a model for regression analysis with a time series of counts. Correlation is assumed to arise from an unobservable process added to the linear predictor in a log linear model. An estimating equation approach used for parameter estimation leads to an iterative weighted and filtered least-squares algorithm. Asymptotic properties for the regression coefficients are presented. We illustrate the technique with an analysis of trends in U.S. polio incidence since 1970.},
+ author = {Scott L. Zeger},
+ journal = {Biometrika},
+ number = {4},
+ pages = {621--629},
+ publisher = {[Oxford University Press, Biometrika Trust]},
+ title = {A Regression Model for Time Series of Counts},
+ urldate = {2022-12-10},
+ volume = {75},
+ year = {1988}
+}
+
+
+

@@ -27,7 +27,7 @@ knitr::opts_chunk$set(echo = TRUE,
 
 # Introduction
 
-Write it later
+Early detection of outbreaks with communicable diseases are of great importance in order to initiate timely interventions and help prevent disease spread. In this report non-normal mixed effects models will be evaluated on their ability to identify outbreaks of Covid-19 disease using data over new hospital admissions with Covid-19 in Denmark.
 
 # Materials and method
 
@@ -41,22 +41,11 @@ In Figure \@ref(fig:admissions) the total number of new admissions to the hospit
 knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/newly_admitted_total.png")
 ```
 
-
-
-
-
 In Figure \@ref(fig:admissionsReg) the daily number of new hospital admissions grouped by region of residence
 
 ```{r admissionsReg, echo=FALSE, fig.cap="Total number of new hospital admissions in Denmark."}
 knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/newly_admitted_regions.png")
 ```
-
-
-
-
-
-
-
 
 
 
@@ -75,7 +64,41 @@ Consider a hierarchical model for Y specified by
 
 where $u \sim\mathrm{N}\big(0,\Sigma(\psi)\big)$.
 
-Seen in this book @db04e22a86244ea0b54e3284c326ef8c 
+Seen in this book @glmm 
+
+## Model
+
+In order to analyze the data a state space model first proposed by @Zeger and extended by @Chan, where the count observation $y_i$ are assumed to follow a Poisson distribution with intensities $\lambda_i$ is given by
+
+$$
+\log(\lambda_i)=\mathbf{X}_i^T \beta+u_i
+$$
+
+Here $\mathbf{X}_i$ is a ?-dimensional vector of covariates and $\beta$ is the corresponding fixed effect model parameters. The random effects $u_i$ are assumed to follow a first order autoregressive process
+
+$$
+u_i=au_{i-1}+\epsilon_i
+$$
+where $\epsilon\sim N(0,\sigma^2), i>1$ is a white noise process, and $a$ and $\sigma$ are model parameters. Using the results from @TSA, it is assumed that the first random effect follow the stationary distribution of the first order autoregressive process $u_1\sim N(0,\sigma^2/(1-a^2))$.
+
+The joint likelihood becomes
+
+\begin{equation}
+\label{eq:jl}
+L(a,\beta,\sigma; \mathbf{y})=\phi_{0,\frac{\sigma^2}{1-\sigma^2}}(u_1) \prod_{i=2}^n\big(\phi_{0,\sigma^2}(u_i-au_{i-1})\big) \prod_{i=1}^n \big(p_{\lambda_i}(y_i)\big)
+\end{equation}
+
+where $\phi_{\mu,\sigma^2}$ is the probability density function (pdf) of the normal distribution with mean $\mu$ and variance $\sigma_2$, and $p_\lambda$ is the pdf of the Poisson distribution with mean $\lambda$. In order to make computation of the joint likelihood function in \@ref(eq:jl) feasible, the estimation is carried out using the multivariate Laplace approximation.
+
+## Laplace approximation
+
+The joint log-likelihood $l(a, \beta,\sigma; \mathbf{y})=\log(L(a,\beta,\sigma;\mathbf{y})$ is approximated by a second order Taylor approximation around the optimum $\tilde{u}=\hat{u}_\theta$ of the log-likelihood function w.r.t. the unobserved random variables $u$, i.e.,
+
+$$
+l(a,\beta,\sigma;\mathbf{y})\approx l()
+$$
+
+
 
 
 ### glmmTMB

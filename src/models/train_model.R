@@ -74,6 +74,10 @@ write_rds(x = m2.KFAS,
           compress = "xz")
 
 
+
+
+
+
 tmp <- predict(m2.KFAS$model)
 matplot(coef(object = KFS(model = m2.KFAS$model))[,7:12])
 plot(tmp$Hovedstaden)
