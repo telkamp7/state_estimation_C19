@@ -1,7 +1,7 @@
 ---
 title: "State estimation of Covid-19 disease in Denmark"
-author: "Kasper Schou Telkamp"
-date: "2022-11-24"
+author: "Kasper Schou Telkamp (s170397)"
+date: "2022-12-23"
 output:
   bookdown::pdf_document2:
     number_sections: false
@@ -26,6 +26,8 @@ knitr::opts_chunk$set(echo = FALSE,
                       out.width = "85%",
                       fig.pos = "H")
 
+Sys.setlocale("LC_ALL","English")
+
 # Load libraries
 library(readr)
 library(kableExtra)
@@ -33,6 +35,8 @@ library(KFAS)
 library(glmmTMB)
 library(psych)
 library(dplyr)
+
+
 
 # Load processed data
 newly_admitted <- read_rds(file = "C:/GIT/state_estimation_C19/data/processed/processed_data.rds")
@@ -48,7 +52,7 @@ m1.KFAS <- read_rds(file = "C:/GIT/state_estimation_C19/src/models/m1.KFAS.rds")
 
 # Introduction
 
-Early detection of outbreaks with communicable diseases are of great importance in order to initiate timely interventions and help prevent disease spread. In this report non-normal mixed effects models will be evaluated on their ability to identify outbreaks of Covid-19 disease using data over new hospital admissions with Covid-19 in Denmark. 
+Early detection of outbreaks with communicable diseases are of great importance in order to initiate timely interventions and help prevent disease spread. In this report non-normal mixed effects models will be evaluated on their ability to identify outbreaks of Covid-19 disease using data over new hospital admissions with Covid-19 in Denmark. Different implementations of generalized linear mixed models (GLMMs) in R packages will be compared. Namely, the `glmmTMB` and `KFAS` R package available at Comprehensive R Archive Network (CRAN).
 
 # Materials and method
 
@@ -75,8 +79,6 @@ knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/newly_admit
 
 Clearly, the observed number of new hospital admissions are correlated in time. 
 
-
-
 In Figure \@ref(fig:admissionsReg) the daily number of new hospital admissions grouped by region of residence is visualized.
 
 ```{r admissionsReg, fig.cap="Total number of new hospital admissions in Denmark."}
@@ -87,7 +89,7 @@ It can be seen that most of the new hospital admissions can be linked to *Region
 
 ## Model formulation
 
-In order to analyze the data a simple state space model is proposed. The count observations $h_t$ of new hospital admissions is assumed to follow a Poisson distribution $h_t \sim \mathrm{P}(\lambda_t)$ with intensities given by
+In order to analyze the data a simple state space model is proposed. The count observations $h_t$ , $t=1,\dots,n$ in a period of $n=`r nrow(newly_admitted)`$ days starting on the`r strftime(x = newly_admitted$Dato[1], format = "%est of %B, %Y")`, of new hospital admissions is assumed to follow a Poisson distribution $h_t \sim \mathrm{P}(\lambda_t)$ with intensities given by
 
 \begin{equation}
 \log(\lambda_t)=\beta + u_t
@@ -99,9 +101,7 @@ Here $\beta$ is a fixed parameter, that represents the average intensity and $u_
 u_t=a u_{t-i}+\epsilon_t
 \end{equation}
 
-where $\epsilon\sim N(0,\sigma^2), t>1$ is a white noise process, and $a$ and $\sigma$ are model parameters. Using the results from @TSA, it is assumed that $u_1$ follow the stationary distribution of the first order autoregressive process $u_1\sim N(0,\sigma^2/(1-a^2))$.
-
-The joint likelihood becomes
+where $\epsilon\sim N(0,\sigma^2), t>1$ is a white noise process, and $a$ and $\sigma$ are model parameters. Using the results from @TSA, it is assumed that $u_1$ follow the stationary distribution of the first order autoregressive process $u_1\sim N(0,\sigma^2/(1-a^2))$. Hence the joint likelihood becomes
 
 \begin{equation}
 \label{eq:jl}
@@ -119,17 +119,25 @@ L_M=(a, \beta, \sigma;\mathbf{y})= \int_{	\mathbb{R}^{q}}L(a, \beta, \sigma;\mat
 
 where $q$ is the number of random effects and $a$, $\beta$, and $\sigma$ are the parameters to be estimated.
 
-## Laplace approximation
-
 In order to make computation of the joint likelihood function in \@ref(eq:ml) feasible, the estimation is carried out using the multivariate Laplace approximation.
 
-The marginal log-likelihood $l_{M,LA}(a, \beta,\sigma; \mathbf{y})=\log(L_M(a,\beta,\sigma;\mathbf{y})$ is approximated by a second order Taylor approximation around the optimum $\tilde{u}=\hat{u}_\theta$ of the log-likelihood function w.r.t. the unobserved random variables $u$, i.e.,
+## Laplace approximation
 
-$$
-l(\mathbf{\theta}, \mathbf{u}, \mathbf{y})\approx l(\mathbf{\theta},\mathbf{\tilde{u}, \mathbf{y}}) - \frac{1}{2}(\mathbf{u}-\tilde{\mathbf{u}})^T H(\mathbf{\tilde{u}})(\mathbf{u}-\tilde{\mathbf{u}})
-$$
+The marginal log-likelihood $l_{M}(a, \beta,\sigma; \mathbf{y})=\log(L_M(a,\beta,\sigma;\mathbf{y}))$ is approximated by a second order Taylor approximation around the optimum $\mathbf{\tilde{u}}=\mathbf{\hat{u}}_\theta$ of the log-likelihood function w.r.t. the unobserved random variables $\mathbf{u}$, i.e.,
 
-where the first-order term of the Taylor expansion disappears since the expansion is done around the optimum $\tilde{\mathbf{u}}$ and $H(\tilde{\mathbf{u}})=-l_{uu}^{''}(\mathbf{\theta},\mathbf{u},\mathbf{y})|_{\mathbf{u}=\tilde{\mathbf{u}}}$ is the negative Hessian of the joint log-likelihood evaluated at $\tilde{\mathbf{u}}$.
+\begin{equation}
+\label{eq:LA}
+l(a, \beta, \sigma; \mathbf{u}, \mathbf{y})\approx l(a, \beta, \sigma;\mathbf{\tilde{u}, \mathbf{y}}) - \frac{1}{2}(\mathbf{u}-\tilde{\mathbf{u}})^T H(\mathbf{\tilde{u}})(\mathbf{u}-\tilde{\mathbf{u}})
+\end{equation}
+
+where the first-order term of the Taylor expansion disappears since the expansion is done around the optimum $\tilde{\mathbf{u}}$ and $H(\tilde{\mathbf{u}})=-l_{uu}^{''}(a, \beta, \sigma,\mathbf{u},\mathbf{y})|_{\mathbf{u}=\tilde{\mathbf{u}}}$ is the negative Hessian of the joint log-likelihood evaluated at $\tilde{\mathbf{u}}$.
+
+Using the approximation in \@ref(eq:LA) on \@ref(eq:ml) the Laplace approximation of the marginal log-likelihood becomes (See @glmm)
+
+\begin{align}
+l_{M,LA}(a,\beta,\sigma;\mathbf{y})&=\log\int_{\mathbb{R}^q}\exp\big(l(a,\beta,\sigma;\mathbf{\tilde{u}}, \mathbf{y})-\frac{1}{2}(\mathbf{u}-\mathbf{\tilde{u}})^T H(\mathbf{\tilde{u}})(\mathbf{u}-\mathbf{\tilde{u}}) \big) d\mathbf{u} \\
+&=l(a,\beta,\sigma;\mathbf{\tilde{u}}, \mathbf{y})-\frac{1}{2}\log\Bigg|\frac{H(\mathbf{\tilde{u}})}{2\pi}\Bigg|
+\end{align}
 
 ## Importance sampling
 
@@ -137,11 +145,11 @@ Importance sampling is a re-weighting technique for approximating integrals w.r.
 
 ## Implementations
 
-In this section two different R packages, `glmmTMB` and `KFAS` available at Comprehensive R Archive Network (CRAN) are presented. 
+In this section two different R packages, `glmmTMB` and `KFAS` available at CRAN are presented. 
 
 ### glmmTMB
 
-This section describes the R package `glmmTMB` by @glmmTMB for linear and generalized linear mixed models (GLMMs) using Template Model Builder (TMB). The models are estimated using maximum likelihood estimation via TMB. Random effects are assumed to be Gaussian on the scale of the linear predictor and are integrated out using Laplace approximation. Additionally, gradients are calculated using automatic differentiation.
+This section describes the R package `glmmTMB` by @glmmTMB for linear and GLMMs using Template Model Builder (TMB). The models are estimated using maximum likelihood estimation via TMB. Random effects are assumed to be Gaussian on the scale of the linear predictor and are integrated out using Laplace approximation. Additionally, gradients are calculated using automatic differentiation.
 
 
 ### KFAS
@@ -176,16 +184,19 @@ $$
 V_t=\V(u_t|h_n,\dots,h_1)
 $$
 
-
 # Results
+
 
 ## Parameters
 
-```{r}
+```{r, eval=FALSE}
 
 summary.m1.glmmTMB <- summary(m1.glmmTMB)
 kbl(summary.m1.glmmTMB[["coefficients"]][["cond"]])
-
+coef(object = m1.glmmTMB, last = TRUE)
+coef(object = m1.out.KFAS, last = TRUE)
+fixef(object = m1.glmmTMB)
+ranef(object = m1.glmmTMB)
 
 ```
 

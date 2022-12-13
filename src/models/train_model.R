@@ -4,14 +4,13 @@ library(KFAS)
 library(glmmTMB)
 library(tidyr)
 library(dplyr)
-library(Matrix)
 
 # Load processed data 
 newly_admitted <- read_rds(file = "./data/processed/processed_data.rds")
 
 #### Total ####
 # glmmTMB
-m1.glmmTMB <- glmmTMB(formula = Total ~ -1 + ar1(drift + 0 | group),
+m1.glmmTMB <- glmmTMB(formula = Total ~ 1 + ar1(drift + 0|group),
                       family = poisson(link = "log"),
                       data = newly_admitted)
 write_rds(x = m1.glmmTMB, 
@@ -19,22 +18,17 @@ write_rds(x = m1.glmmTMB,
           compress = "xz")
 
 ## KFAS
-Zt <- matrix(c(1,0), 1, 2)
-Tt <- matrix(c(1,0,1,1), 2, 2)
-Rt <- matrix(c(1,0), 2, 1)
-Qt <- matrix(NA)
-P1inf <- diag(2)
-mod1.KFAS <- SSModel(formula = Total ~ -1 +
-                       SSMcustom(Z = Zt, T = Tt, R = Rt, Q = Qt, P1inf = P1inf),
-                     distribution = "poisson", data = newly_admitted)
-m1.KFAS <- fitSSM(mod1.KFAS, inits = c(1), method = "BFGS")
-write_rds(x = m1.KFAS,
-          file = "./src/models/m1.KFAS.rds",
+mod1.KFAS <- SSModel(Total ~ 1 +
+                      SSMarima(ar = 0, Q = 1),
+                    data = newly_admitted, distribution = "poisson")
+m1.out.KFAS <- KFS(model = mod1.KFAS,
+                   filtering = c("state", "signal", "mean"),
+                   nsim = 100)
+write_rds(x = m1.out.KFAS,
+          file = "./src/models/m1.out.KFAS.rds",
           compress = "xz")
 
-
 #### Grouped by region ####
-
 regional_newly_admitted <- read_rds(file = "./data/processed/processed_regional_data.rds")
 
 
