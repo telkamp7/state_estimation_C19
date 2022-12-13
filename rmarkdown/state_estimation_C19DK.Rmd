@@ -7,6 +7,8 @@ output:
     number_sections: false
     toc: true
     extra_dependencies: ["amsmath", "float", "subfig"]
+    includes:
+      in_header: preamble.tex
 editor_options: 
   chunk_output_type: console
 bibliography: C:/GIT/state_estimation_C19/references/bibliography.bib
@@ -15,6 +17,8 @@ csl: C:/GIT/state_estimation_C19/references/apa.csl
 
 
 ```{r setup, include=FALSE}
+
+# Chunk settings
 knitr::opts_chunk$set(echo = FALSE,
                       fig.width = 12,
                       fig.height = 6,
@@ -22,19 +26,23 @@ knitr::opts_chunk$set(echo = FALSE,
                       out.width = "85%",
                       fig.pos = "H")
 
+# Load libraries
 library(readr)
 library(kableExtra)
 library(KFAS)
 library(glmmTMB)
+library(psych)
+library(dplyr)
+
+# Load processed data
+newly_admitted <- read_rds(file = "C:/GIT/state_estimation_C19/data/processed/processed_data.rds")
 
 
-```
-
-```{r}
+# Load trained models
 m1.glmmTMB <- read_rds(file = "C:/GIT/state_estimation_C19/src/models/m1.glmmTMB.rds")
 m1.KFAS <- read_rds(file = "C:/GIT/state_estimation_C19/src/models/m1.KFAS.rds")
-```
 
+```
 
 \newpage
 
@@ -46,19 +54,36 @@ Early detection of outbreaks with communicable diseases are of great importance 
 
 ## Data
 
-In this project, the daily record of new hospital admissions with Covid-19 in Denmark grouped by region of residence and totals are used. The data is publicly available and were obtained from Statens Serum Institut (SSI) website^[https://covid19.ssi.dk/overvagningsdata/download-fil-med-overvaagningdata]. SSI collects the data from the National Patient Registry (NPR), which contains information about outpatient contacts from Danish public as well as private hospitals. The data from NPR has some delay. Therefore, the inventory is updated daily with real-time data from the regions. The regions provide snapshot-data twice to SSI daily at 7am and 3pm. A hospital admission related to Covid-19 is defined as an admission, where a patient is admitted within 14 days after a positive SARS-CoV-2 test. Patients that are tested positive for SARS-CoV-2 during an admission is also registered as a Covid-19 related admission. Furthermore, admissions with Covid-19 are only registered for patients that are present in at least one snapshot, or if the patient have been admitted for more than 12 hours according to NPR.
+In this project, the daily record of new hospital admissions with Covid-19 in Denmark grouped by region of residence and totals are used. The head and tail of the processed data are listed in Table \@ref(tab:tbl).
 
-In Figure \@ref(fig:admissions) the total number of new admissions to the hospital are visualized.
+(ref:tbl) Processed dataset containing the daily record of new hospital admissions with Covid-19 in Denmark grouped by region of residence and with totals. 
+
+```{r tbl}
+options(knitr.kable.NA = "...")
+newly_admitted %>%
+  select(Dato:Total) %>%
+  headTail() %>%
+  kable(digits = 2, format = "latex", booktabs = TRUE, longtable = TRUE, caption = "(ref:tbl)") %>%
+  kable_styling()
+```
+
+The data is publicly available and were obtained from Statens Serum Institut (SSI) website^[https://covid19.ssi.dk/overvagningsdata/download-fil-med-overvaagningdata]. SSI collects the data from the National Patient Registry (NPR), which contains information about outpatient contacts from Danish public as well as private hospitals. The data from NPR has some delay. Therefore, the inventory is updated daily with real-time data from the regions. The regions provide snapshot-data twice to SSI daily at 7am and 3pm. A hospital admission related to Covid-19 is defined as an admission, where a patient is admitted within 14 days after a positive SARS-CoV-2 test. Patients that are tested positive for SARS-CoV-2 during an admission is also registered as a Covid-19 related admission. Furthermore, admissions with Covid-19 are only registered for patients that are present in at least one snapshot, or if the patient have been admitted for more than 12 hours according to NPR. The total number of new admissions to the hospital in Denmark are visualized in Figure \@ref(fig:admissions).
 
 ```{r admissions, fig.cap="Daily number of new hospital admissions in Denmark."}
 knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/newly_admitted_total.png")
 ```
 
-In Figure \@ref(fig:admissionsReg) the daily number of new hospital admissions grouped by region of residence
+Clearly, the observed number of new hospital admissions are correlated in time. 
+
+
+
+In Figure \@ref(fig:admissionsReg) the daily number of new hospital admissions grouped by region of residence is visualized.
 
 ```{r admissionsReg, fig.cap="Total number of new hospital admissions in Denmark."}
 knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/newly_admitted_regions.png")
 ```
+
+It can be seen that most of the new hospital admissions can be linked to *Region Hovedstaden*, while only a negligible amount are linked to the unknown region. This is largely due to the fact, that *Region Hovedstaden* considers more individuals.
 
 ## Model formulation
 
@@ -98,18 +123,17 @@ where $q$ is the number of random effects and $a$, $\beta$, and $\sigma$ are the
 
 In order to make computation of the joint likelihood function in \@ref(eq:ml) feasible, the estimation is carried out using the multivariate Laplace approximation.
 
-The joint log-likelihood $l(a, \beta,\sigma; \mathbf{y})=\log(L(a,\beta,\sigma;\mathbf{y})$ is approximated by a second order Taylor approximation around the optimum $\tilde{u}=\hat{u}_\theta$ of the log-likelihood function w.r.t. the unobserved random variables $u$, i.e.,
+The marginal log-likelihood $l_{M,LA}(a, \beta,\sigma; \mathbf{y})=\log(L_M(a,\beta,\sigma;\mathbf{y})$ is approximated by a second order Taylor approximation around the optimum $\tilde{u}=\hat{u}_\theta$ of the log-likelihood function w.r.t. the unobserved random variables $u$, i.e.,
 
 $$
 l(\mathbf{\theta}, \mathbf{u}, \mathbf{y})\approx l(\mathbf{\theta},\mathbf{\tilde{u}, \mathbf{y}}) - \frac{1}{2}(\mathbf{u}-\tilde{\mathbf{u}})^T H(\mathbf{\tilde{u}})(\mathbf{u}-\tilde{\mathbf{u}})
 $$
+
 where the first-order term of the Taylor expansion disappears since the expansion is done around the optimum $\tilde{\mathbf{u}}$ and $H(\tilde{\mathbf{u}})=-l_{uu}^{''}(\mathbf{\theta},\mathbf{u},\mathbf{y})|_{\mathbf{u}=\tilde{\mathbf{u}}}$ is the negative Hessian of the joint log-likelihood evaluated at $\tilde{\mathbf{u}}$.
 
 ## Importance sampling
 
-Importance sampling is a re-weighting technique for approximating integrals w.r.t. a density *f* by simulation in cases where it is not feasible to simulate from the destribution with density *f*. Instead it uses samples from a different distribution with density *g*, where the support of *g* includes the support of *f*.
-
-
+Importance sampling is a re-weighting technique for approximating integrals w.r.t. a density *f* by simulation in cases where it is not feasible to simulate from the distribution with density *f*. Instead it uses samples from a different distribution with density *g*, where the support of *g* includes the support of *f*.
 
 ## Implementations
 
@@ -122,13 +146,35 @@ This section describes the R package `glmmTMB` by @glmmTMB for linear and genera
 
 ### KFAS
 
-This section goes into detail with the R package `KFAS` by @KFAS for state space modelling with observations from the exponential family. 
+This section goes into detail with the R package `KFAS` by @KFAS for state space modelling with observations from the exponential family. The `KFAS` package can perform Kalman filtering and smoothing with exact diffuse initialization using an univariate approach.
 
-In `KFAS` the Poisson distribution with intensity $\lambda_t$ together with the log-link is supported.
+In `KFAS` the Poisson distribution with intensity $\lambda_t$ and exposure term $e_t$ together with the log-link is supported. Thus we have $\E\big(h_t|\log(\lambda_t)\big)=\V\big(h_t|\log(\lambda_t)\big)=e_t\lambda_t$. In this report the exposure term is assumed to be constant, i.e. $e_t=1$. Hence, the differences are represented directly in the estimated parameters and latent state.
 
-In order to make inferences of the Poisson model, a Gaussian model which has the same conditional posterior mode as $p(\theta|y)$ has to be found
+In order to make inferences of the Poisson model, `KFAS` finds a Gaussian model with the same conditional posterior mode as $\mathrm{P}(\lambda|\mathbf{h})$. This is done trough an iterative process with Laplace approximation of $\mathrm{P}(\lambda|\mathbf{h})$, where the updated estimates of $\log(\lambda_t)$ are computed via the Kalman filtering and smoothing from the approximating Gaussian model. The final estimates of $\log(\hat{\lambda}_t)$ correspond to the mode of $\mathrm{P}(\lambda|\mathbf{h})$. Generally, the difference between the mode and the mean is negligible. Nevertheless, our interest is focused on the intensity $\lambda_t$ rather than the linear predictor $\log(\lambda_t)$. 
 
-The `KFAS`package can perform Kalman filtering and smoothing with exact diffuse initialization using an univariate approach.
+Direct transformation from the linear predictor to the intensity introduces some bias. To solve this problem `KFAS` also contains methods based on importance sampling.
+
+#### Filtering
+
+in `KFAS` is denoted as
+
+$$
+u_{t+1}=\E(u_{t+1}|h_t,\dots,h_1)
+$$
+$$
+P_{t+1}=\V(u_{t+1}|h_t,\dots,h_1)
+$$
+
+#### Smoothing
+
+in `KFAS` is denoted by
+
+$$
+\hat{u}_t=\E(u_t|h_n,\dots,h_1)
+$$
+$$
+V_t=\V(u_t|h_n,\dots,h_1)
+$$
 
 
 # Results
