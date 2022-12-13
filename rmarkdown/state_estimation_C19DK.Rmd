@@ -15,19 +15,32 @@ csl: C:/GIT/state_estimation_C19/references/apa.csl
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,
+knitr::opts_chunk$set(echo = FALSE,
                       fig.width = 12,
                       fig.height = 6,
                       fig.align = "center",
                       out.width = "85%",
                       fig.pos = "H")
+
+library(readr)
+library(kableExtra)
+library(KFAS)
+library(glmmTMB)
+
+
 ```
+
+```{r}
+m1.glmmTMB <- read_rds(file = "C:/GIT/state_estimation_C19/src/models/m1.glmmTMB.rds")
+m1.KFAS <- read_rds(file = "C:/GIT/state_estimation_C19/src/models/m1.KFAS.rds")
+```
+
 
 \newpage
 
 # Introduction
 
-Early detection of outbreaks with communicable diseases are of great importance in order to initiate timely interventions and help prevent disease spread. In this report non-normal mixed effects models will be evaluated on their ability to identify outbreaks of Covid-19 disease using data over new hospital admissions with Covid-19 in Denmark.
+Early detection of outbreaks with communicable diseases are of great importance in order to initiate timely interventions and help prevent disease spread. In this report non-normal mixed effects models will be evaluated on their ability to identify outbreaks of Covid-19 disease using data over new hospital admissions with Covid-19 in Denmark. 
 
 # Materials and method
 
@@ -37,69 +50,70 @@ In this project, the daily record of new hospital admissions with Covid-19 in De
 
 In Figure \@ref(fig:admissions) the total number of new admissions to the hospital are visualized.
 
-```{r admissions, echo=FALSE, fig.cap="Daily number of new hospital admissions in Denmark."}
+```{r admissions, fig.cap="Daily number of new hospital admissions in Denmark."}
 knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/newly_admitted_total.png")
 ```
 
 In Figure \@ref(fig:admissionsReg) the daily number of new hospital admissions grouped by region of residence
 
-```{r admissionsReg, echo=FALSE, fig.cap="Total number of new hospital admissions in Denmark."}
+```{r admissionsReg, fig.cap="Total number of new hospital admissions in Denmark."}
 knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/newly_admitted_regions.png")
 ```
 
+## Model formulation
 
+In order to analyze the data a simple state space model is proposed. The count observations $h_t$ of new hospital admissions is assumed to follow a Poisson distribution $h_t \sim \mathrm{P}(\lambda_t)$ with intensities given by
 
+\begin{equation}
+\log(\lambda_t)=\beta + u_t
+\end{equation}
 
+Here $\beta$ is a fixed parameter, that represents the average intensity and $u_t$ is a random effect that is assumed to follow a first order autoregressive process
 
-## Generalized linear mixed effects model
+\begin{equation}
+u_t=a u_{t-i}+\epsilon_t
+\end{equation}
 
-Consider a hierarchical model for Y specified by
-
-\begin{subequations}
-\begin{align}
-  Y \sim \mathrm{Pois}(\lambda) \\
-  \log(\lambda)=\mathbf{X}\mathbf{\beta}+u
-\end{align}
-\end{subequations}
-
-where $u \sim\mathrm{N}\big(0,\Sigma(\psi)\big)$.
-
-Seen in this book @glmm 
-
-## Model
-
-In order to analyze the data a state space model first proposed by @Zeger and extended by @Chan, where the count observation $y_i$ are assumed to follow a Poisson distribution with intensities $\lambda_i$ is given by
-
-$$
-\log(\lambda_i)=\mathbf{X}_i^T \beta+u_i
-$$
-
-Here $\mathbf{X}_i$ is a ?-dimensional vector of covariates and $\beta$ is the corresponding fixed effect model parameters. The random effects $u_i$ are assumed to follow a first order autoregressive process
-
-$$
-u_i=au_{i-1}+\epsilon_i
-$$
-where $\epsilon\sim N(0,\sigma^2), i>1$ is a white noise process, and $a$ and $\sigma$ are model parameters. Using the results from @TSA, it is assumed that the first random effect follow the stationary distribution of the first order autoregressive process $u_1\sim N(0,\sigma^2/(1-a^2))$.
+where $\epsilon\sim N(0,\sigma^2), t>1$ is a white noise process, and $a$ and $\sigma$ are model parameters. Using the results from @TSA, it is assumed that $u_1$ follow the stationary distribution of the first order autoregressive process $u_1\sim N(0,\sigma^2/(1-a^2))$.
 
 The joint likelihood becomes
 
 \begin{equation}
 \label{eq:jl}
-L(a,\beta,\sigma; \mathbf{y})=\phi_{0,\frac{\sigma^2}{1-\sigma^2}}(u_1) \prod_{i=2}^n\big(\phi_{0,\sigma^2}(u_i-au_{i-1})\big) \prod_{i=1}^n \big(p_{\lambda_i}(y_i)\big)
+L(a,\beta,\sigma; \mathbf{u}, \mathbf{y})=\phi_{0,\frac{\sigma^2}{1-\sigma^2}}(u_1) \prod_{t=2}^n\big(\phi_{0,\sigma^2}(u_t-au_{t-1})\big) \prod_{t=1}^n \big(p_{\lambda_t}(h_t)\big)
 \end{equation}
 
-where $\phi_{\mu,\sigma^2}$ is the probability density function (pdf) of the normal distribution with mean $\mu$ and variance $\sigma_2$, and $p_\lambda$ is the pdf of the Poisson distribution with mean $\lambda$. In order to make computation of the joint likelihood function in \@ref(eq:jl) feasible, the estimation is carried out using the multivariate Laplace approximation.
+where $\phi_{\mu,\sigma^2}$ is the probability density function (pdf) of the normal distribution with mean $\mu$ and variance $\sigma_2$, and $p_\lambda$ is the pdf of the Poisson distribution with mean $\lambda$. 
+
+In order to obtain the likelihood for the model parameters $(a, \beta, \sigma)$ the observed random effects are integrated out. Hence, the marginal likelihood is obtained
+
+\begin{equation}
+\label{eq:ml}
+L_M=(a, \beta, \sigma;\mathbf{y})= \int_{	\mathbb{R}^{q}}L(a, \beta, \sigma;\mathbf{u}, \mathbf{y})d\mathbf{u}
+\end{equation}
+
+where $q$ is the number of random effects and $a$, $\beta$, and $\sigma$ are the parameters to be estimated.
 
 ## Laplace approximation
+
+In order to make computation of the joint likelihood function in \@ref(eq:ml) feasible, the estimation is carried out using the multivariate Laplace approximation.
 
 The joint log-likelihood $l(a, \beta,\sigma; \mathbf{y})=\log(L(a,\beta,\sigma;\mathbf{y})$ is approximated by a second order Taylor approximation around the optimum $\tilde{u}=\hat{u}_\theta$ of the log-likelihood function w.r.t. the unobserved random variables $u$, i.e.,
 
 $$
-l(a,\beta,\sigma;\mathbf{y})\approx l()
+l(\mathbf{\theta}, \mathbf{u}, \mathbf{y})\approx l(\mathbf{\theta},\mathbf{\tilde{u}, \mathbf{y}}) - \frac{1}{2}(\mathbf{u}-\tilde{\mathbf{u}})^T H(\mathbf{\tilde{u}})(\mathbf{u}-\tilde{\mathbf{u}})
 $$
+where the first-order term of the Taylor expansion disappears since the expansion is done around the optimum $\tilde{\mathbf{u}}$ and $H(\tilde{\mathbf{u}})=-l_{uu}^{''}(\mathbf{\theta},\mathbf{u},\mathbf{y})|_{\mathbf{u}=\tilde{\mathbf{u}}}$ is the negative Hessian of the joint log-likelihood evaluated at $\tilde{\mathbf{u}}$.
+
+## Importance sampling
+
+Importance sampling is a re-weighting technique for approximating integrals w.r.t. a density *f* by simulation in cases where it is not feasible to simulate from the destribution with density *f*. Instead it uses samples from a different distribution with density *g*, where the support of *g* includes the support of *f*.
 
 
 
+## Implementations
+
+In this section two different R packages, `glmmTMB` and `KFAS` available at Comprehensive R Archive Network (CRAN) are presented. 
 
 ### glmmTMB
 
@@ -110,28 +124,54 @@ This section describes the R package `glmmTMB` by @glmmTMB for linear and genera
 
 This section goes into detail with the R package `KFAS` by @KFAS for state space modelling with observations from the exponential family. 
 
+In `KFAS` the Poisson distribution with intensity $\lambda_t$ together with the log-link is supported.
+
+In order to make inferences of the Poisson model, a Gaussian model which has the same conditional posterior mode as $p(\theta|y)$ has to be found
+
+The `KFAS`package can perform Kalman filtering and smoothing with exact diffuse initialization using an univariate approach.
+
 
 # Results
+
+## Parameters
+
+```{r}
+
+summary.m1.glmmTMB <- summary(m1.glmmTMB)
+kbl(summary.m1.glmmTMB[["coefficients"]][["cond"]])
+
+
+```
+
 
 ## Estimating the total number of new hospital admissions in Denmark
 
 In Figure \@ref(fig:admittedPred) the total number of new hospitals admissions in Denmark is visualized together with the smoothed estimates from `glmmTMB` and `KFAS`.
 
-```{r admittedPred, echo=FALSE, fig.cap="Total number of new hospital admissions in Denmark with smoothed estimates from glmmTMB and KFAS."}
+```{r admittedPred, fig.cap="Total number of new hospital admissions in Denmark with smoothed estimates from glmmTMB and KFAS."}
 knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/admitted_pred_plot.png")
 ```
 
-In Figure \@ref(fig:latentState) the estimated latent intensity from `glmmTMB` and `KFAS` is visualized.
 
-```{r latentState, echo=FALSE, fig.cap="Estimated latent intensity from glmmTMB and KFAS."}
+
+```{r residuals, fig.cap="Model residuals from glmmTMB and KFAS."}
+knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/residual_plot.png")
+```
+
+The smoothed estimate of the latent state estimated from `glmmTMB` and `KFAS` is visualized in Figure \@ref(fig:latentState).
+
+(ref:latentState) Smoothed estimates of the latent states from `glmmTMB` and `KFAS`.
+
+```{r latentState, fig.cap="(ref:latentState)"}
 knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/latent_state_plot.png")
 ```
+
 
 ## Estimating the number of new hospital admissions in Denmark grouped by region
 
 In Figure \@ref(fig:admittedRegPred) the total number of new hospitals admissions in Denmark grouped by region is visualized together with the smoothed estimates from `glmmTMB` and `KFAS`.
 
-```{r admittedRegPred, echo=FALSE, fig.cap="Total number of new hospital admissions in Denmark grouped by region with smoothed estimates from glmmTMB and KFAS."}
+```{r admittedRegPred, fig.cap="Total number of new hospital admissions in Denmark grouped by region with smoothed estimates from glmmTMB and KFAS."}
 knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/admitted_reg_pred_plot.png")
 ```
 
@@ -139,6 +179,7 @@ knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/admitted_re
 
 Write it later
 
+\newpage
 
 # References
 
