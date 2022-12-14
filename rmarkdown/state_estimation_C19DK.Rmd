@@ -11,8 +11,8 @@ output:
       in_header: preamble.tex
 editor_options: 
   chunk_output_type: console
-bibliography: C:/GIT/state_estimation_C19/references/bibliography.bib
-csl: C:/GIT/state_estimation_C19/references/apa.csl
+bibliography: C:/GIT/state_estimation_C19//references/bibliography.bib
+csl: C:/GIT/state_estimation_C19//references/apa.csl
 ---
 
 
@@ -23,7 +23,7 @@ knitr::opts_chunk$set(echo = FALSE,
                       fig.width = 12,
                       fig.height = 6,
                       fig.align = "center",
-                      out.width = "85%",
+                      out.width = "100%",
                       fig.pos = "H")
 
 Sys.setlocale("LC_ALL","English")
@@ -37,15 +37,18 @@ library(psych)
 library(dplyr)
 
 
+```
 
+```{r load}
 # Load processed data
-newly_admitted <- read_rds(file = "C:/GIT/state_estimation_C19/data/processed/processed_data.rds")
-
+newly_admitted <- read_rds(file = "./../data/processed/processed_data.rds")
 
 # Load trained models
-m1.glmmTMB <- read_rds(file = "C:/GIT/state_estimation_C19/src/models/m1.glmmTMB.rds")
-m1.KFAS <- read_rds(file = "C:/GIT/state_estimation_C19/src/models/m1.KFAS.rds")
-
+m1.glmmTMB <- read_rds(file = "./../src/models/m1.glmmTMB.rds")
+m1.KFAS <- read_rds(file = "./../src/models/m1.KFAS.rds")
+m1.out.KFAS <- read_rds(file = "./../src/models/m1.out.KFAS.rds")
+m2.glmmTMB <- read_rds(file = "./../src/models/m2.glmmTMB.rds")
+m2.out.KFAS <- read_rds(file = "./../src/models/m2.out.KFAS.rds")
 ```
 
 \newpage
@@ -67,14 +70,18 @@ options(knitr.kable.NA = "...")
 newly_admitted %>%
   select(Dato:Total) %>%
   headTail() %>%
-  kable(digits = 2, format = "latex", booktabs = TRUE, longtable = TRUE, caption = "(ref:tbl)") %>%
+  kable(digits = 2,
+        format = "latex",
+        booktabs = TRUE,
+        longtable = TRUE,
+        caption = "(ref:tbl)") %>%
   kable_styling()
 ```
 
 The data is publicly available and were obtained from Statens Serum Institut (SSI) website^[https://covid19.ssi.dk/overvagningsdata/download-fil-med-overvaagningdata]. SSI collects the data from the National Patient Registry (NPR), which contains information about outpatient contacts from Danish public as well as private hospitals. The data from NPR has some delay. Therefore, the inventory is updated daily with real-time data from the regions. The regions provide snapshot-data twice to SSI daily at 7am and 3pm. A hospital admission related to Covid-19 is defined as an admission, where a patient is admitted within 14 days after a positive SARS-CoV-2 test. Patients that are tested positive for SARS-CoV-2 during an admission is also registered as a Covid-19 related admission. Furthermore, admissions with Covid-19 are only registered for patients that are present in at least one snapshot, or if the patient have been admitted for more than 12 hours according to NPR. The total number of new admissions to the hospital in Denmark are visualized in Figure \@ref(fig:admissions).
 
 ```{r admissions, fig.cap="Daily number of new hospital admissions in Denmark."}
-knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/newly_admitted_total.png")
+knitr::include_graphics("./../reports/figures/newly_admitted_total.png")
 ```
 
 Clearly, the observed number of new hospital admissions are correlated in time. 
@@ -82,7 +89,7 @@ Clearly, the observed number of new hospital admissions are correlated in time.
 In Figure \@ref(fig:admissionsReg) the daily number of new hospital admissions grouped by region of residence is visualized.
 
 ```{r admissionsReg, fig.cap="Total number of new hospital admissions in Denmark."}
-knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/newly_admitted_regions.png")
+knitr::include_graphics("./../reports/figures/newly_admitted_regions.png")
 ```
 
 It can be seen that most of the new hospital admissions can be linked to *Region Hovedstaden*, while only a negligible amount are linked to the unknown region. This is largely due to the fact, that *Region Hovedstaden* considers more individuals.
@@ -195,7 +202,9 @@ summary.m1.glmmTMB <- summary(m1.glmmTMB)
 kbl(summary.m1.glmmTMB[["coefficients"]][["cond"]])
 coef(object = m1.glmmTMB, last = TRUE)
 coef(object = m1.out.KFAS, last = TRUE)
+
 fixef(object = m1.glmmTMB)
+
 ranef(object = m1.glmmTMB)
 
 ```
@@ -206,13 +215,13 @@ ranef(object = m1.glmmTMB)
 In Figure \@ref(fig:admittedPred) the total number of new hospitals admissions in Denmark is visualized together with the smoothed estimates from `glmmTMB` and `KFAS`.
 
 ```{r admittedPred, fig.cap="Total number of new hospital admissions in Denmark with smoothed estimates from glmmTMB and KFAS."}
-knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/admitted_pred_plot.png")
+knitr::include_graphics("./../reports/figures/admitted_pred_plot.png")
 ```
 
 
 
 ```{r residuals, fig.cap="Model residuals from glmmTMB and KFAS."}
-knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/residual_plot.png")
+knitr::include_graphics("./../reports/figures/residual_plot.png")
 ```
 
 The smoothed estimate of the latent state estimated from `glmmTMB` and `KFAS` is visualized in Figure \@ref(fig:latentState).
@@ -220,7 +229,7 @@ The smoothed estimate of the latent state estimated from `glmmTMB` and `KFAS` is
 (ref:latentState) Smoothed estimates of the latent states from `glmmTMB` and `KFAS`.
 
 ```{r latentState, fig.cap="(ref:latentState)"}
-knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/latent_state_plot.png")
+knitr::include_graphics("./../reports/figures/latent_state_plot.png")
 ```
 
 
@@ -229,7 +238,20 @@ knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/latent_stat
 In Figure \@ref(fig:admittedRegPred) the total number of new hospitals admissions in Denmark grouped by region is visualized together with the smoothed estimates from `glmmTMB` and `KFAS`.
 
 ```{r admittedRegPred, fig.cap="Total number of new hospital admissions in Denmark grouped by region with smoothed estimates from glmmTMB and KFAS."}
-knitr::include_graphics("C:/GIT/state_estimation_C19/reports/figures/admitted_reg_pred_plot.png")
+knitr::include_graphics("./../reports/figures/admitted_reg_pred_plot.png")
+```
+
+(ref:latentStateRegPred) Smoothed estimates of the latent states from `glmmTMB` and `KFAS`.
+
+```{r latentStateRegPred, fig.cap="(ref:latentStateRegPred)"}
+knitr::include_graphics("./../reports/figures/latent_state_reg_plot.png")
+```
+
+(ref:residualRegPred) Model residuals from `glmmTMB` and `KFAS`.
+
+
+```{r residualRegPred, fig.cap="(ref:residualRegPred)"}
+knitr::include_graphics("./../reports/figures/residual_reg_plot.png")
 ```
 
 # Discussion

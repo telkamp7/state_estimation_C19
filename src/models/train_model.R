@@ -43,9 +43,7 @@ write_rds(x = m2.glmmTMB,
 # KFAS
 
 count_split <- split(regional_newly_admitted$count, regional_newly_admitted$region)
-
 p <- length(count_split)
-
 count <- matrix(unlist(count_split), ncol = p,
             dimnames = list(NULL, names(count_split)))
 
@@ -59,16 +57,17 @@ mod2.KFAS <- SSModel(formula = count ~ -1 +
                        SSMarima(ar = artransform(1)),
                      distribution = "poisson")
 
+m2.out.KFAS <- KFS(model = mod2.KFAS,
+                   nsim = 100)
 m2.KFAS <- fitSSM(model = mod2.KFAS,
                   inits = rep(1, p+1),
                   method = "BFGS")
-
+write_rds(x = m2.out.KFAS,
+          file = "./src/models/m2.out.KFAS.rds",
+          compress = "xz")
 write_rds(x = m2.KFAS,
           file = "./src/models/m2.KFAS.rds",
           compress = "xz")
-
-
-
 
 
 
