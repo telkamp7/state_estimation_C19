@@ -9,6 +9,8 @@ library(ggplot2)
 library(RColorBrewer)
 library(purrr)
 
+Sys.setlocale("LC_ALL","English")
+
 # Set theme globally for total plots
 theme_set(
   theme_bw() +

@@ -1,6 +1,6 @@
 ---
 title: "State estimation of Covid-19 disease in Denmark"
-author: "Kasper Schou Telkamp (s170397)"
+author: "Kasper Schou Telkamp"
 date: "2022-12-23"
 output:
   bookdown::pdf_document2:
@@ -196,19 +196,45 @@ $$
 
 ## Parameters
 
-```{r, eval=FALSE}
+(ref:parTbl) That and this
 
-summary.m1.glmmTMB <- summary(m1.glmmTMB)
-kbl(summary.m1.glmmTMB[["coefficients"]][["cond"]])
-coef(object = m1.glmmTMB, last = TRUE)
-coef(object = m1.out.KFAS, last = TRUE)
+```{r parTbl}
 
-fixef(object = m1.glmmTMB)
+parTbl <- data.frame(Parameter = "$\\beta$",
+                     glmmTMB = as.numeric(fixef(object = m1.glmmTMB)$cond),
+                     KFAS = as.numeric(coef(object = m1.out.KFAS, last = TRUE)[1]))
 
-ranef(object = m1.glmmTMB)
+
+kable(parTbl,
+      digits = 2,
+      format = "latex",
+      col.names = c("Parameter", "glmmTMB", "KFAS"),
+      booktabs = TRUE,
+      longtable = TRUE,
+      escape = FALSE,
+      caption = "(ref:parTbl)")
 
 ```
 
+(ref:parTblReg) This and that
+
+```{r parameterTableReg}
+
+parTblReg <- data.frame(Parameter = paste0("$\\beta_",1:6,"$"),
+                        glmmTMB = as.numeric(fixef(object = m2.glmmTMB)$cond),
+                        KFAS = as.numeric(coef(object = m2.out.KFAS, last = TRUE)[1:6]))
+
+kable(parTblReg,
+      digits = 2,
+      format = "latex",
+      col.names = c("Parameter", "glmmTMB", "KFAS"),
+      booktabs = TRUE,
+      longtable = TRUE,
+      linesep = "",
+      escape = FALSE,
+      caption = "(ref:parTblReg)")
+
+```
 
 ## Estimating the total number of new hospital admissions in Denmark
 

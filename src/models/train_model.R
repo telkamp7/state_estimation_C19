@@ -50,7 +50,7 @@ count <- matrix(unlist(count_split), ncol = p,
 dataf <- split(regional_newly_admitted, regional_newly_admitted$region)
 
 mod2.KFAS <- SSModel(formula = count ~ -1 +
-                       SSMregression(rformula = rep(list(~ region),p),
+                       SSMregression(rformula = rep(list(~ -1 + region),p),
                                      remove.intercept = FALSE,
                                      type = "common",
                                      data = dataf) +
