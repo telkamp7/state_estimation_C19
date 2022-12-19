@@ -43,6 +43,8 @@ library(dplyr)
 # Load processed data
 newly_admitted <- read_rds(file = "./../data/processed/processed_data.rds")
 
+n <- nrow(newly_admitted)
+
 # Load trained models
 m1.glmmTMB <- read_rds(file = "./../src/models/m1.glmmTMB.rds")
 m1.KFAS <- read_rds(file = "./../src/models/m1.KFAS.rds")
@@ -55,15 +57,13 @@ m2.out.KFAS <- read_rds(file = "./../src/models/m2.out.KFAS.rds")
 
 # Introduction
 
-Early detection of outbreaks with communicable diseases are of great importance in order to initiate timely interventions and help prevent disease spread. In this report non-normal mixed effects models will be evaluated on their ability to identify outbreaks of Covid-19 disease using data over new hospital admissions with Covid-19 in Denmark. Different implementations of generalized linear mixed models (GLMMs) in R packages will be compared. Namely, the `glmmTMB` and `KFAS` R package available at Comprehensive R Archive Network (CRAN).
+Early detection of outbreaks with communicable diseases are of great importance in order to initiate timely interventions and help prevent disease spread. When dealing with vast amount of data, automated procedures can supplement traditional surveillance methods. In this report non-normal mixed effects models is evaluated on their ability to identify outbreaks of Covid-19 disease using data over new hospital admissions with Covid-19 in Denmark. Different implementations of generalized linear mixed models (GLMMs) in R packages is compared. Namely, the `glmmTMB` [@glmmTMB] and `KFAS` [@KFAS] R packages available at Comprehensive R Archive Network (CRAN).
 
-# Materials and method
+# Data
 
-## Data
+In this project, the daily record of new hospital admissions with Covid-19 in Denmark grouped by region of residence and totals are used. This report is based on data from `r strftime(newly_admitted$Dato[1], format = "%F")` to `r strftime(newly_admitted$Dato[n], format = "%F")` is used. The head and tail of the processed data are listed in Table \@ref(tab:tbl).
 
-In this project, the daily record of new hospital admissions with Covid-19 in Denmark grouped by region of residence and totals are used. The head and tail of the processed data are listed in Table \@ref(tab:tbl).
-
-(ref:tbl) Processed dataset containing the daily record of new hospital admissions with Covid-19 in Denmark grouped by region of residence and with totals. 
+(ref:tbl) Processed data containing the daily record of new hospital admissions with Covid-19 in Denmark grouped by region of residence and with totals. 
 
 ```{r tbl}
 options(knitr.kable.NA = "...")
@@ -80,21 +80,31 @@ newly_admitted %>%
 
 The data is publicly available and were obtained from Statens Serum Institut (SSI) website^[https://covid19.ssi.dk/overvagningsdata/download-fil-med-overvaagningdata]. SSI collects the data from the National Patient Registry (NPR), which contains information about outpatient contacts from Danish public as well as private hospitals. The data from NPR has some delay. Therefore, the inventory is updated daily with real-time data from the regions. The regions provide snapshot-data twice to SSI daily at 7am and 3pm. A hospital admission related to Covid-19 is defined as an admission, where a patient is admitted within 14 days after a positive SARS-CoV-2 test. Patients that are tested positive for SARS-CoV-2 during an admission is also registered as a Covid-19 related admission. Furthermore, admissions with Covid-19 are only registered for patients that are present in at least one snapshot, or if the patient have been admitted for more than 12 hours according to NPR. The total number of new admissions to the hospital in Denmark are visualized in Figure \@ref(fig:admissions).
 
-```{r admissions, fig.cap="Daily number of new hospital admissions in Denmark."}
+```{r admissions, fig.cap="Total number of new hospital admissions in Denmark."}
 knitr::include_graphics("./../reports/figures/newly_admitted_total.png")
 ```
 
-Clearly, the observed number of new hospital admissions are correlated in time. 
+Clearly, the observed number of new hospital admissions are correlated in time. In the past consecutive epidemiological waves of Covid-19 disease have been observed, but with varying peak number of new hospital admissions. The peak number of new hospital admissions depends upon a number of influencing factors such as:
 
-In Figure \@ref(fig:admissionsReg) the daily number of new hospital admissions grouped by region of residence is visualized.
+- Severity of illness
+- Population in which the virus spreads
+- How many are infected
 
-```{r admissionsReg, fig.cap="Total number of new hospital admissions in Denmark."}
+Whereas the first two waves of new admissions to hospitals with Covid-19 disease can be explained by the severity of the illness and the population in which the virus spread, the large wave observed in early January, 2022, is more like likely caused by the vast amount of disease spread and how many that were infected at the same time. 
+
+Denmark is grouped into five regions: *Hovestaden*, *Midtjylland*, *Nordjylland*, *Sjælland*, and *Syddanmark*. If a patient is admitted to the hospital with Covid-19, but does not reside in any of the regions, they are marked as  *Ukendt Region*. In Figure \@ref(fig:admissionsReg) the daily number of new hospital admissions grouped by region of residence is visualized.
+
+```{r admissionsReg, fig.cap="Total number of new hospital admissions in Denmark grouped by region of residence."}
 knitr::include_graphics("./../reports/figures/newly_admitted_regions.png")
 ```
 
-It can be seen that most of the new hospital admissions can be linked to *Region Hovedstaden*, while only a negligible amount are linked to the unknown region. This is largely due to the fact, that *Region Hovedstaden* considers more individuals.
+It can be seen that most of the new hospital admissions can be linked to *Hovedstaden*, while only a negligible amount are linked to the *Ukendt Region*. Intermediate amount of new hospital admissions are linked to *Midtjylland*, *Nordjylland*, *Sjælland*, and *Syddanmark*. This is largely due to the fact, that *Hovedstaden* considers more individuals and that the exposure therefore is higher in this region. Additionally, a correlation between the regions are observed.
 
-## Model formulation
+# Methodology
+
+In this section the GLMMs for modelling the number of new hospital admissions are formulated. Moreover, methods for approximating the likelihood functions and implementations in R packages for parameter estimation are presented. 
+
+## Modelling
 
 In order to analyze the data a simple state space model is proposed. The count observations $h_t$ , $t=1,\dots,n$ in a period of $n=`r nrow(newly_admitted)`$ days starting on the`r strftime(x = newly_admitted$Dato[1], format = "%est of %B, %Y")`, of new hospital admissions is assumed to follow a Poisson distribution $h_t \sim \mathrm{P}(\lambda_t)$ with intensities given by
 
@@ -102,20 +112,20 @@ In order to analyze the data a simple state space model is proposed. The count o
 \log(\lambda_t)=\beta + u_t
 \end{equation}
 
-Here $\beta$ is a fixed parameter, that represents the average intensity and $u_t$ is a random effect that is assumed to follow a first order autoregressive process
+Here $\beta$ is a fixed parameter, that represents the average intensity and $u_t$ is a random effect that is assumed to follow a first order auto-regressive process
 
 \begin{equation}
 u_t=a u_{t-i}+\epsilon_t
 \end{equation}
 
-where $\epsilon\sim N(0,\sigma^2), t>1$ is a white noise process, and $a$ and $\sigma$ are model parameters. Using the results from @TSA, it is assumed that $u_1$ follow the stationary distribution of the first order autoregressive process $u_1\sim N(0,\sigma^2/(1-a^2))$. Hence the joint likelihood becomes
+where $\epsilon\sim N(0,\sigma^2), t>1$ is a white noise process, and $a$ and $\sigma$ are model parameters. Using the results from @TSA, it is assumed that $u_1$ follow the stationary distribution of the first order auto-regressive process $u_1\sim N(0,\sigma^2/(1-a^2))$. Hence the joint likelihood becomes
 
 \begin{equation}
 \label{eq:jl}
 L(a,\beta,\sigma; \mathbf{u}, \mathbf{y})=\phi_{0,\frac{\sigma^2}{1-\sigma^2}}(u_1) \prod_{t=2}^n\big(\phi_{0,\sigma^2}(u_t-au_{t-1})\big) \prod_{t=1}^n \big(p_{\lambda_t}(h_t)\big)
 \end{equation}
 
-where $\phi_{\mu,\sigma^2}$ is the probability density function (pdf) of the normal distribution with mean $\mu$ and variance $\sigma_2$, and $p_\lambda$ is the pdf of the Poisson distribution with mean $\lambda$. 
+where $\phi_{\mu,\sigma^2}$ is the probability density function (pdf) of the normal distribution with mean $\mu$ and variance $\sigma_2$, and $p_\lambda$ is the pdf of the Poisson distribution with mean $\lambda$. Intuitively, the model can be extended by modelling the individual regions. Hence, $(a, \beta, \sigma)$ are 6-dimensional vectors.
 
 In order to obtain the likelihood for the model parameters $(a, \beta, \sigma)$ the observed random effects are integrated out. Hence, the marginal likelihood is obtained
 
@@ -128,7 +138,7 @@ where $q$ is the number of random effects and $a$, $\beta$, and $\sigma$ are the
 
 In order to make computation of the joint likelihood function in \@ref(eq:ml) feasible, the estimation is carried out using the multivariate Laplace approximation.
 
-## Laplace approximation
+### Laplace approximation
 
 The marginal log-likelihood $l_{M}(a, \beta,\sigma; \mathbf{y})=\log(L_M(a,\beta,\sigma;\mathbf{y}))$ is approximated by a second order Taylor approximation around the optimum $\mathbf{\tilde{u}}=\mathbf{\hat{u}}_\theta$ of the log-likelihood function w.r.t. the unobserved random variables $\mathbf{u}$, i.e.,
 
@@ -146,18 +156,17 @@ l_{M,LA}(a,\beta,\sigma;\mathbf{y})&=\log\int_{\mathbb{R}^q}\exp\big(l(a,\beta,\
 &=l(a,\beta,\sigma;\mathbf{\tilde{u}}, \mathbf{y})-\frac{1}{2}\log\Bigg|\frac{H(\mathbf{\tilde{u}})}{2\pi}\Bigg|
 \end{align}
 
-## Importance sampling
+### Importance sampling
 
 Importance sampling is a re-weighting technique for approximating integrals w.r.t. a density *f* by simulation in cases where it is not feasible to simulate from the distribution with density *f*. Instead it uses samples from a different distribution with density *g*, where the support of *g* includes the support of *f*.
 
-## Implementations
+## Parameter estimation
 
-In this section two different R packages, `glmmTMB` and `KFAS` available at CRAN are presented. 
+In this section two R packages for used to estimate the parameters are presented. Namely, `glmmTMB` and `KFAS` which are available at CRAN. 
 
 ### glmmTMB
 
 This section describes the R package `glmmTMB` by @glmmTMB for linear and GLMMs using Template Model Builder (TMB). The models are estimated using maximum likelihood estimation via TMB. Random effects are assumed to be Gaussian on the scale of the linear predictor and are integrated out using Laplace approximation. Additionally, gradients are calculated using automatic differentiation.
-
 
 ### KFAS
 
@@ -169,40 +178,33 @@ In order to make inferences of the Poisson model, `KFAS` finds a Gaussian model 
 
 Direct transformation from the linear predictor to the intensity introduces some bias. To solve this problem `KFAS` also contains methods based on importance sampling.
 
-#### Filtering
-
-in `KFAS` is denoted as
-
-$$
-u_{t+1}=\E(u_{t+1}|h_t,\dots,h_1)
-$$
-$$
-P_{t+1}=\V(u_{t+1}|h_t,\dots,h_1)
-$$
-
-#### Smoothing
-
-in `KFAS` is denoted by
-
-$$
-\hat{u}_t=\E(u_t|h_n,\dots,h_1)
-$$
-$$
-V_t=\V(u_t|h_n,\dots,h_1)
-$$
-
 # Results
 
+In this section the obtained parameter estimates are presented.
 
-## Parameters
+## Estimating the total number of new hospital admissions in Denmark
 
 (ref:parTbl) That and this
 
 ```{r parTbl}
+# Number of decimals
+digits <- 3
+
+glmmTMB.summary <- summary(m1.glmmTMB)
+
+glmmTMB.beta <- paste0(round(glmmTMB.summary$coefficients$cond[1],digits),
+                       " (", round(glmmTMB.summary$coefficients$cond[2],digits),")")
+
+KFAS.beta <- paste0(round(as.numeric(coef(object = m1.out.KFAS, last = TRUE)[1]), digits),
+                    " (", round(sqrt(m1.out.KFAS$V[1,1,n]), digits),")")
 
 parTbl <- data.frame(Parameter = "$\\beta$",
-                     glmmTMB = as.numeric(fixef(object = m1.glmmTMB)$cond),
-                     KFAS = as.numeric(coef(object = m1.out.KFAS, last = TRUE)[1]))
+                     glmmTMB = glmmTMB.beta,
+                     KFAS = KFAS.beta)
+
+# parTbl <- data.frame(Parameter = "$\\beta$",
+#                      glmmTMB = as.numeric(fixef(object = m1.glmmTMB)$cond),
+#                      KFAS = as.numeric(coef(object = m1.out.KFAS, last = TRUE)[1]))
 
 
 kable(parTbl,
@@ -216,13 +218,41 @@ kable(parTbl,
 
 ```
 
+The smoothed estimate of the latent state estimated from `glmmTMB` and `KFAS` is visualized in Figure \@ref(fig:latentState).
+
+(ref:latentState) Smoothed estimates of the latent states from `glmmTMB` and `KFAS`.
+
+```{r latentState, fig.cap="(ref:latentState)"}
+knitr::include_graphics("./../reports/figures/latent_state_plot.png")
+```
+
+In Figure \@ref(fig:admittedPred) the total number of new hospitals admissions in Denmark is visualized together with the smoothed estimates from `glmmTMB` and `KFAS`.
+
+```{r admittedPred, fig.cap="Total number of new hospital admissions in Denmark with smoothed estimates from glmmTMB and KFAS."}
+knitr::include_graphics("./../reports/figures/admitted_pred_plot.png")
+```
+
+## Estimating the number of new hospital admissions in Denmark grouped by region
+
 (ref:parTblReg) This and that
 
 ```{r parameterTableReg}
 
+glmmTMB.reg.summary <- summary(m2.glmmTMB)
+
+glmmTMB.reg.beta <- paste0(round(glmmTMB.reg.summary$coefficients$cond[,1],digits)," (",
+                           round(glmmTMB.reg.summary$coefficients$cond[,2],digits),")")
+
+KFAS.reg.beta <- paste0(round(as.numeric(coef(object = m2.out.KFAS, last = TRUE)[1:6]), digits),
+                    " (", round(sqrt(diag(m2.out.KFAS$V[,,n])),digits)[1:6],")")
+
 parTblReg <- data.frame(Parameter = paste0("$\\beta_",1:6,"$"),
-                        glmmTMB = as.numeric(fixef(object = m2.glmmTMB)$cond),
-                        KFAS = as.numeric(coef(object = m2.out.KFAS, last = TRUE)[1:6]))
+                        glmmTMB = glmmTMB.reg.beta,
+                        KFAS = KFAS.reg.beta)
+
+# parTblReg <- data.frame(Parameter = paste0("$\\beta_",1:6,"$"),
+#                         glmmTMB = as.numeric(fixef(object = m2.glmmTMB)$cond),
+#                         KFAS = as.numeric(coef(object = m2.out.KFAS, last = TRUE)[1:6]))
 
 kable(parTblReg,
       digits = 2,
@@ -236,30 +266,11 @@ kable(parTblReg,
 
 ```
 
-## Estimating the total number of new hospital admissions in Denmark
+(ref:latentStateRegPred) Smoothed estimates of the latent states from `glmmTMB` and `KFAS`.
 
-In Figure \@ref(fig:admittedPred) the total number of new hospitals admissions in Denmark is visualized together with the smoothed estimates from `glmmTMB` and `KFAS`.
-
-```{r admittedPred, fig.cap="Total number of new hospital admissions in Denmark with smoothed estimates from glmmTMB and KFAS."}
-knitr::include_graphics("./../reports/figures/admitted_pred_plot.png")
+```{r latentStateRegPred, fig.cap="(ref:latentStateRegPred)"}
+knitr::include_graphics("./../reports/figures/latent_state_reg_plot.png")
 ```
-
-
-
-```{r residuals, fig.cap="Model residuals from glmmTMB and KFAS."}
-knitr::include_graphics("./../reports/figures/residual_plot.png")
-```
-
-The smoothed estimate of the latent state estimated from `glmmTMB` and `KFAS` is visualized in Figure \@ref(fig:latentState).
-
-(ref:latentState) Smoothed estimates of the latent states from `glmmTMB` and `KFAS`.
-
-```{r latentState, fig.cap="(ref:latentState)"}
-knitr::include_graphics("./../reports/figures/latent_state_plot.png")
-```
-
-
-## Estimating the number of new hospital admissions in Denmark grouped by region
 
 In Figure \@ref(fig:admittedRegPred) the total number of new hospitals admissions in Denmark grouped by region is visualized together with the smoothed estimates from `glmmTMB` and `KFAS`.
 
@@ -267,14 +278,18 @@ In Figure \@ref(fig:admittedRegPred) the total number of new hospitals admission
 knitr::include_graphics("./../reports/figures/admitted_reg_pred_plot.png")
 ```
 
-(ref:latentStateRegPred) Smoothed estimates of the latent states from `glmmTMB` and `KFAS`.
+## Residual analysis
 
-```{r latentStateRegPred, fig.cap="(ref:latentStateRegPred)"}
-knitr::include_graphics("./../reports/figures/latent_state_reg_plot.png")
+Diagnostic plots of the one-step prediction residuals for the total number of new hospital admissions in Denmark are visualized in Figure \@ref(fig:diagnosticRes). Overall the plots hint that the model can be improved. In A) and B) a significant auto-correlation in the residuals are detected. This is likely caused by the increased variance in the number of new admissions during the Covid-19 waves. The two lower plots, C) and D), indicate heavy tailed residuals.
+
+(ref:diagnosticRes) Diagnostic plots of the in-sample one-step prediction residuals. A) Time series of the residuals, B) auto-correlation function of the residuals, C) Histogram of the residuals, and D) Qunatile-Quantile plot of the residuals.
+
+```{r diagnosticRes, fig.cap="(ref:diagnosticRes)"}
+knitr::include_graphics("./../reports/figures/diagnostic_residuals.png")
 ```
 
-(ref:residualRegPred) Model residuals from `glmmTMB` and `KFAS`.
 
+(ref:residualRegPred) Model residuals from `glmmTMB` and `KFAS`.
 
 ```{r residualRegPred, fig.cap="(ref:residualRegPred)"}
 knitr::include_graphics("./../reports/figures/residual_reg_plot.png")
@@ -284,8 +299,37 @@ knitr::include_graphics("./../reports/figures/residual_reg_plot.png")
 
 Write it later
 
+# Conclusion
+
 \newpage
 
 # References
 
 <div id="refs"></div>
+
+# (APPENDIX) Appendix {-} 
+
+# Appendix A
+
+(ref:residualHistReg) Write me
+
+```{r residualHistReg, fig.cap="(ref:residualRegPred)"}
+knitr::include_graphics("./../reports/figures/histogram_residual_reg_plot.png")
+```
+
+# Appendix B
+
+
+(ref:residualQQReg) Write me
+
+```{r residualQQReg, fig.cap="(ref:residualQQReg)"}
+knitr::include_graphics("./../reports/figures/qq_residual_reg_plot.png")
+```
+
+# Appendix C
+
+(ref:residualACFReg) Write me
+
+```{r residualACFReg, fig.cap="(ref:residualACFReg)"}
+knitr::include_graphics("./../reports/figures/ACF_residual_reg_plot.png")
+```

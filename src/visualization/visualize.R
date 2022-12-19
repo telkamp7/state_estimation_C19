@@ -8,6 +8,8 @@ library(purrr)
 library(ggplot2)
 library(RColorBrewer)
 library(purrr)
+library(forecast)
+library(cowplot)
 
 Sys.setlocale("LC_ALL","English")
 
@@ -78,12 +80,61 @@ mod.res <- newly_admitted %>%
 residual_plot <- ggplot(data = mod.res, mapping = aes(x = Dato, y = Res, colour = Model, pch = Model)) +
   geom_point() +
   scale_color_brewer(palette = "Paired") +
-  labs(x = "Date [days]", y = expression(epsilon[t])) +
+  labs(x = "Date [days]", y = "Residuals [#]") +
   guides(color = guide_legend(override.aes = list(size = 3)))
 ggsave(plot = residual_plot,
        filename = "./reports/figures/residual_plot.png",
        dpi = "retina", width = 8, height = 4, units = "in")
 
+hist_residual_plot <- ggplot(mod.res, mapping = aes(x = Res, fill = Model)) +
+  geom_histogram() +
+  scale_fill_brewer(palette = "Paired") +
+  labs(x = "Residuals [#]")
+ggsave(plot = hist_residual_plot,
+       filename = "./reports/figures/hist_residual_plot.png",
+       dpi = "retina", width = 8, height = 4, units = "in")
+
+qq_residual_plot <- ggplot(data = mod.res, mapping = aes(sample = Res, colour = Model)) +
+  stat_qq()+ stat_qq_line(linewidth = 1.2) +
+  scale_color_brewer(palette = "Paired") +
+  labs(x = "Theoretical Quantiles", y = "Sample Quantiles")
+ggsave(plot = qq_residual_plot,
+       filename = "./reports/figures/qq_residual_plot.png",
+       dpi = "retina", width = 8, height = 4, units = "in")
+
+mod.ACF <- mod.res %>%
+  pivot_wider(names_from = Model, values_from = Res) %>%
+  select(-Dato) %>%
+  ggAcf(plot = FALSE) %>%
+  map(~ as_tibble(.x))
+
+ACF_residual_plot <- mod.ACF$acf %>%
+  select(V1, V4) %>%
+  rename(glmmTMB = V1, KFAS = V4) %>%
+  mutate(Lag = 0:26) %>%
+  pivot_longer(cols = c(glmmTMB, KFAS), names_to = "Model", values_to = "ACF") %>%
+  ggplot() +
+  geom_segment(mapping = aes(x = Lag, xend = Lag, y = 0, yend = ACF, colour = Model), linewidth = 2) +
+  geom_hline(yintercept = c(0, -1.96, 1.96) / sqrt(as.numeric(mod.ACF$n.used)),
+             lty = c("solid", "dashed", "dashed"),
+             col = c("black", "blue", "blue")) +
+  scale_color_brewer(palette = "Paired") +
+  labs(y = "ACF")
+ggsave(plot = ACF_residual_plot,
+       filename = "./reports/figures/ACF_residual_plot.png",
+       dpi = "retina", width = 8, height = 4, units = "in")
+
+cow_residual <- plot_grid(residual_plot + theme(legend.position = "none"),
+          ACF_residual_plot + theme(legend.position = "none"),
+          hist_residual_plot + theme(legend.position = "none"),
+          qq_residual_plot + theme(legend.position = "none"),
+          labels = "AUTO")
+legend <- get_legend(hist_residual_plot)
+
+diagnostic_residuals <- plot_grid(legend, cow_residual, ncol = 1, rel_heights = c(.1, 1))
+ggsave(plot = diagnostic_residuals,
+       filename = "./reports/figures/diagnostic_residuals.png",
+       dpi = "retina", width = 12, height = 8, units = "in")
 
 #### Regional ####
 # Set theme for regional plots
@@ -214,10 +265,54 @@ residual_reg_plot <- ggplot(data = mod.res.regional, mapping = aes(x = Dato, y =
   facet_wrap(facets = vars(region)) +
   scale_color_brewer(palette = "Paired") +
   scale_x_date(name = "Date [Days]", date_breaks = "9 months", date_labels = "%Y-%m") +
-  labs(y = expression(epsilon[t]))  +
+  labs(y = "Residuals [#]")  +
     guides(color = guide_legend(override.aes = list(size = 3)))
 ggsave(plot = residual_reg_plot,
        filename = "./reports/figures/residual_reg_plot.png",
        dpi = "retina", width = 12, height = 8, units = "in")
 
+histogram_residual_reg_plot <-
+  ggplot(data = mod.res.regional, mapping = aes(x = residual, fill = Model)) +
+  geom_histogram() +
+  facet_wrap(facets = vars(region)) +
+  scale_fill_brewer(palette = "Paired")+
+  labs(x = "Residuals [#]")
+ggsave(plot = histogram_residual_reg_plot,
+       filename = "./reports/figures/histogram_residual_reg_plot.png",
+       dpi = "retina", width = 12, height = 8, units = "in")
 
+qq_residual_reg_plot <- ggplot(data = mod.res.regional, mapping = aes(sample = residual, colour = Model)) +
+  stat_qq()+ stat_qq_line(linewidth = 1.2) +
+  facet_wrap(facets = vars(region)) +
+  scale_color_brewer(palette = "Paired") +
+  labs(x = "Theoretical Quantiles", y = "Sample Quantiles")
+ggsave(plot = qq_residual_reg_plot,
+       filename = "./reports/figures/qq_residual_reg_plot.png",
+       dpi = "retina", width = 12, height = 8, units = "in")
+
+
+mod.ACF.reg <- mod.res.regional %>%
+  pivot_wider(names_from = c(region,Model), values_from = residual) %>%
+  select(-Dato) %>%
+  ggAcf(plot = FALSE) %>%
+  map(~ as_tibble(.x))
+
+mod.ACF.unfold.reg <- mod.ACF.reg$acf %>%
+  select(ends_with(paste0("V",seq(from = 1, to = 144, by = 13)))) %>%
+  mutate(Lag = 0:19)
+
+colnames(mod.ACF.unfold.reg)[1:12] <- t(mod.ACF.reg$snames)
+
+ACF_residual_reg_plot <- mod.ACF.unfold.reg %>%
+  pivot_longer(cols = -Lag, names_sep = "_", names_to = c("Region", "Model"), values_to = "ACF") %>%
+  ggplot() +
+  geom_segment(mapping = aes(x = Lag, xend = Lag, y = 0, yend = ACF, colour = Model), linewidth = 2) +
+  geom_hline(yintercept = c(0, -1.96, 1.96) / sqrt(as.numeric(mod.ACF.reg$n.used)),
+             lty = rep(c("solid", "dashed", "dashed"),6),
+             col = rep(c("black", "blue", "blue"),6)) +
+  facet_wrap(facets = vars(Region)) +
+  scale_colour_brewer(palette = "Paired") +
+  labs(y = "ACF")
+ggsave(plot = ACF_residual_reg_plot,
+       filename = "./reports/figures/ACF_residual_reg_plot.png",
+       dpi = "retina", width = 12, height = 8, units = "in")
