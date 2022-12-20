@@ -58,7 +58,9 @@ m2.out.KFAS <- read_rds(file = "./../src/models/m2.out.KFAS.rds")
 
 # Introduction
 
-Early detection of outbreaks with communicable diseases are of great importance in order to initiate timely interventions and help prevent disease spread. When dealing with vast amount of data, automated procedures can supplement traditional surveillance methods. In this report non-normal mixed effects models is evaluated on their ability to identify outbreaks of Covid-19 disease using data over new hospital admissions with Covid-19 in Denmark. Different implementations of generalized linear mixed models (GLMMs) in R packages is compared. Namely, the `glmmTMB` [@glmmTMB] and `KFAS` [@KFAS] R packages available at Comprehensive R Archive Network (CRAN).
+Early detection of outbreaks with communicable diseases are of great importance in order to initiate timely interventions and help prevent disease spread. When dealing with vast amount of data, automated procedures can supplement traditional surveillance methods, and help achieve earlier detection of the outbreak. Ultimately, leading to a reduction in the size of the disease outbreak.
+
+In this report non-normal mixed effects models is evaluated on their ability to identify outbreaks of Covid-19 disease using data over new hospital admissions with Covid-19 in Denmark. Different implementations of generalized linear mixed models (GLMMs) in R packages is compared. Namely, the `glmmTMB` [@glmmTMB] and `KFAS` [@KFAS] R packages available at Comprehensive R Archive Network (CRAN).
 
 # Data
 
@@ -333,14 +335,21 @@ knitr::include_graphics("./../reports/figures/residual_reg_plot.png")
 
 # Discussion
 
+During the Covid-19 pandemic a generic model for early detection of disease outbreaks using data have been in high demand. While using the daily record of new hospital admissions with Covid-19 is a sound an robust indicator for disease spread, the signal is rather delayed. This pose as a major obstacle in timely identification of outbreaks with the disease. In this report GLMMs have been evaluated on their ability to identify such outbreaks of Covid-19 disease using only data over new hospital admissions with Covid-19 in Denmark. The GLMMs have been implemented trough two standard implementations in R, namely the `glmmTMB` and `KFAS` R package. While implementation of the GLMM in `glmmTMB` is rather straightforward, it is a bit more complicated in `KFAS`. On the other hand `KFAS` have a more flexible implementation, which allows for arbitrary model formulation by manually adjusting the system matrices. A major drawback for the `KFAS` implementation is that the computational costs of filtering and smoothing are relatively high, which makes it un-desired for online-filtering problems. Another possibility is to implement the GLMM using the R package Template Model Builder (`TMB`) by @TMB, which is the R package that `glmmTMB` is build on. This would enable a more flexible implementation of the GLMM. 
+
+The R packages investigated in this report, `glmmTMB` and `KFAS`, are build on structurally different ideas and methods, which made it difficult to compare the implementations directly. However, it was found that both implementations sufficiently identified the random effects and could positively be used to detect a disease outbreak.
 
 
-As observed in Figure \@ref(fig:admissionsReg) and later confirmed in Figure \@ref(fig:admittedRegPred) there is a clear correlation in the number of new hospital admissions between the regions. Intuitively, this makes sense as infected individuals can move freely between the regions, and spread the disease. Hence, a possible extension to the model could be to include a correlation between the regions.
+
+As observed in Figure \@ref(fig:admissionsReg) and later confirmed in Figure \@ref(fig:admittedRegPred) there is a clear correlation in the daily record of new hospital admissions in time and between the regions. Intuitively, this makes sense as infected individuals can move freely between the regions, and spread the disease. Henceforth, a possible extension to the model could be to include a correlation between the regions. Furthermore, the model could be extended with an extra white noise term in \@ref(eq:1st) in order to capture possible over-dispersion in the data.
+
+
 
 # Conclusion
 
+Clear auto-correlations are observed in the daily number of new hospital admissions. Additionally, a correlation between the regions are observed. 
 
-
+Both the `glmmTMB` and `KFAS` implementations sufficiently identifies the random effects and can be used to identify outbreaks with Covid-19 disease. Further extensions of the GLMM is needed in order to adequately describe the data.
 
 \newpage
 
