@@ -36,6 +36,8 @@ library(glmmTMB)
 library(psych)
 library(dplyr)
 
+# Number of decimals
+digits <- 3
 
 ```
 
@@ -47,7 +49,6 @@ n <- nrow(newly_admitted)
 
 # Load trained models
 m1.glmmTMB <- read_rds(file = "./../src/models/m1.glmmTMB.rds")
-m1.KFAS <- read_rds(file = "./../src/models/m1.KFAS.rds")
 m1.out.KFAS <- read_rds(file = "./../src/models/m1.out.KFAS.rds")
 m2.glmmTMB <- read_rds(file = "./../src/models/m2.glmmTMB.rds")
 m2.out.KFAS <- read_rds(file = "./../src/models/m2.out.KFAS.rds")
@@ -61,7 +62,7 @@ Early detection of outbreaks with communicable diseases are of great importance 
 
 # Data
 
-In this project, the daily record of new hospital admissions with Covid-19 in Denmark grouped by region of residence and totals are used. This report is based on data from `r strftime(newly_admitted$Dato[1], format = "%F")` to `r strftime(newly_admitted$Dato[n], format = "%F")` is used. The head and tail of the processed data are listed in Table \@ref(tab:tbl).
+In this project, the daily record of new hospital admissions with Covid-19 in Denmark grouped by region of residence and totals are used. This report is based on data from `r strftime(x = newly_admitted$Dato[1], format = "%est of %B, %Y")` to `r strftime(x = newly_admitted$Dato[n], format = "%eth of %B, %Y")`. The head and tail of the processed data are listed in Table \@ref(tab:tbl).
 
 (ref:tbl) Processed data containing the daily record of new hospital admissions with Covid-19 in Denmark grouped by region of residence and with totals. 
 
@@ -84,13 +85,13 @@ The data is publicly available and were obtained from Statens Serum Institut (SS
 knitr::include_graphics("./../reports/figures/newly_admitted_total.png")
 ```
 
-Clearly, the observed number of new hospital admissions are correlated in time. In the past consecutive epidemiological waves of Covid-19 disease have been observed, but with varying peak number of new hospital admissions. The peak number of new hospital admissions depends upon a number of influencing factors such as:
+Clearly, the observed number of new hospital admissions are correlated in time. Consecutive epidemiological waves of Covid-19 disease have been observed, but with varying peak number of new hospital admissions. The peak number of new hospital admissions depends upon a number of influencing factors such as:
 
 - Severity of illness
 - Population in which the virus spreads
 - How many are infected
 
-Whereas the first two waves of new admissions to hospitals with Covid-19 disease can be explained by the severity of the illness and the population in which the virus spread, the large wave observed in early January, 2022, is more like likely caused by the vast amount of disease spread and how many that were infected at the same time. 
+Whereas the first two waves of new admissions to hospitals with Covid-19 disease can be explained by the severity of the illness and the population in which the virus spread, the large wave observed in early January, 2022, is more like likely caused by a vast amount of disease spread and the number of individuals that were infected at the same time. 
 
 Denmark is grouped into five regions: *Hovestaden*, *Midtjylland*, *Nordjylland*, *Sjælland*, and *Syddanmark*. If a patient is admitted to the hospital with Covid-19, but does not reside in any of the regions, they are marked as  *Ukendt Region*. In Figure \@ref(fig:admissionsReg) the daily number of new hospital admissions grouped by region of residence is visualized.
 
@@ -98,7 +99,7 @@ Denmark is grouped into five regions: *Hovestaden*, *Midtjylland*, *Nordjylland*
 knitr::include_graphics("./../reports/figures/newly_admitted_regions.png")
 ```
 
-It can be seen that most of the new hospital admissions can be linked to *Hovedstaden*, while only a negligible amount are linked to the *Ukendt Region*. Intermediate amount of new hospital admissions are linked to *Midtjylland*, *Nordjylland*, *Sjælland*, and *Syddanmark*. This is largely due to the fact, that *Hovedstaden* considers more individuals and that the exposure therefore is higher in this region. Additionally, a correlation between the regions are observed.
+It can be seen that most of the new hospital admissions can be linked to *Hovedstaden*, while only a negligible amount are linked to *Ukendt Region*. Intermediate amount of new hospital admissions are linked to *Midtjylland*, *Nordjylland*, *Sjælland*, and *Syddanmark*. This is largely due to the fact, that *Hovedstaden* considers more individuals and that the exposure therefore is higher in this region. Additionally, a correlation between the regions are observed.
 
 # Methodology
 
@@ -109,12 +110,14 @@ In this section the GLMMs for modelling the number of new hospital admissions ar
 In order to analyze the data a simple state space model is proposed. The count observations $h_t$ , $t=1,\dots,n$ in a period of $n=`r nrow(newly_admitted)`$ days starting on the`r strftime(x = newly_admitted$Dato[1], format = "%est of %B, %Y")`, of new hospital admissions is assumed to follow a Poisson distribution $h_t \sim \mathrm{P}(\lambda_t)$ with intensities given by
 
 \begin{equation}
+\label{eq:1st}
 \log(\lambda_t)=\beta + u_t
 \end{equation}
 
-Here $\beta$ is a fixed parameter, that represents the average intensity and $u_t$ is a random effect that is assumed to follow a first order auto-regressive process
+Here $\beta$ is a fixed effect parameter, that represents the average intensity and $u_t$ is a random effect that is assumed to follow a first order auto-regressive process
 
 \begin{equation}
+\label{eq:2nd}
 u_t=a u_{t-i}+\epsilon_t
 \end{equation}
 
@@ -172,7 +175,7 @@ This section describes the R package `glmmTMB` by @glmmTMB for linear and GLMMs 
 
 This section goes into detail with the R package `KFAS` by @KFAS for state space modelling with observations from the exponential family. The `KFAS` package can perform Kalman filtering and smoothing with exact diffuse initialization using an univariate approach.
 
-In `KFAS` the Poisson distribution with intensity $\lambda_t$ and exposure term $e_t$ together with the log-link is supported. Thus we have $\E\big(h_t|\log(\lambda_t)\big)=\V\big(h_t|\log(\lambda_t)\big)=e_t\lambda_t$. In this report the exposure term is assumed to be constant, i.e. $e_t=1$. Hence, the differences are represented directly in the estimated parameters and latent state.
+In `KFAS` the Poisson distribution with intensity $\lambda_t$ and exposure term $e_t$ together with the log-link is supported. Thus we have $\E\big(h_t|\log(\lambda_t)\big)=\V\big(h_t|\log(\lambda_t)\big)=e_t\lambda_t$. In this report the exposure term is assumed to be constant, i.e. $e_t=1$. Hence, the differences in time and between the regions are represented directly in the estimated parameters and latent state.
 
 In order to make inferences of the Poisson model, `KFAS` finds a Gaussian model with the same conditional posterior mode as $\mathrm{P}(\lambda|\mathbf{h})$. This is done trough an iterative process with Laplace approximation of $\mathrm{P}(\lambda|\mathbf{h})$, where the updated estimates of $\log(\lambda_t)$ are computed via the Kalman filtering and smoothing from the approximating Gaussian model. The final estimates of $\log(\hat{\lambda}_t)$ correspond to the mode of $\mathrm{P}(\lambda|\mathbf{h})$. Generally, the difference between the mode and the mean is negligible. Nevertheless, our interest is focused on the intensity $\lambda_t$ rather than the linear predictor $\log(\lambda_t)$. 
 
@@ -180,32 +183,37 @@ Direct transformation from the linear predictor to the intensity introduces some
 
 # Results
 
-In this section the obtained parameter estimates are presented.
+In this section the obtained estimates for the fixed- and random effects are presented. Additionally, the model residuals are evaluated.
 
 ## Estimating the total number of new hospital admissions in Denmark
 
-(ref:parTbl) That and this
+```{r intensities}
+glmmTMB.summary <- summary(m1.glmmTMB)
+glmmTMB.beta.est <- round(glmmTMB.summary$coefficients$cond[1],digits)
+glmmTMB.beta.std <- round(glmmTMB.summary$coefficients$cond[2],digits)
+KFAS.beta.est <- round(as.numeric(coef(object = m1.out.KFAS, last = TRUE)[1]), digits)
+KFAS.beta.std <- round(sqrt(m1.out.KFAS$V[1,1,n]), digits)
+
+glmmTMB.beta <- paste0(glmmTMB.beta.est," (",glmmTMB.beta.std,")")
+KFAS.beta <- paste0(KFAS.beta.est," (",KFAS.beta.std,")")
+
+```
+
+The average intensity, $\beta$, estimates from `glmmTMB` and `KFAS` is listed in Table \@ref(tab:parTbl) together with the standard deviation of the random effect residuals, $\sigma$. It can be seen that the average intensity, $\beta$ is estimated to be `r glmmTMB.beta` and `r KFAS.beta` using `glmmTMB` and `KFAS` respectively. It is noted that the standard deviation of the estimate from `glmmTMB` is rather high, and that the estimate from `KFAS` lies within one standard deviation from the `glmmTMB` estimate. The standard deviation of the estimate from `KFAS` is rather low, which is because the `KFAS` R package contains methods based on importance sampling.
+
+The estimated average number of new hospital admissions considering only the fixed effect is `r round(exp(glmmTMB.beta.est), digits)` and `r round(exp(KFAS.beta.est), digits)`. There is a noticeable difference between these two estimates of $\beta$, which comes down to the fact that `glmmTMB` and `KFAS` uses different methods for parameter estimation.
+
+As an example, the likelihood computation in `KFAS` is an iterative procedure which is stopped using som stopping criteria, so the log-likelihood function contains some noise. This can affect the gradient computations in methods like the Broyden-Fletcher-Goldfarb-Shanno (`BFGS`), which is used in this report, and can in theory give unreliable results. Therefore, using a derivative free method like Nelder-Mead can be recommended, even though it is not as computationally efficient.
+
+(ref:parTbl) Parameter estimates for the GLMM given in \@ref(eq:1st) and \@ref(eq:2nd) obtained using the `KFAS` and `glmmTMB` R packages. The standard deviation of the estimate is given in the parantheses. A method for calculating $\sigma$ in non-Gaussian models is not supported in `KFAS`.
 
 ```{r parTbl}
-# Number of decimals
-digits <- 3
 
-glmmTMB.summary <- summary(m1.glmmTMB)
+glmmTMB.sigma <- paste0(round(attr(x = glmmTMB.summary$varcor$cond$group, which = "stddev")[1],digits))
 
-glmmTMB.beta <- paste0(round(glmmTMB.summary$coefficients$cond[1],digits),
-                       " (", round(glmmTMB.summary$coefficients$cond[2],digits),")")
-
-KFAS.beta <- paste0(round(as.numeric(coef(object = m1.out.KFAS, last = TRUE)[1]), digits),
-                    " (", round(sqrt(m1.out.KFAS$V[1,1,n]), digits),")")
-
-parTbl <- data.frame(Parameter = "$\\beta$",
-                     glmmTMB = glmmTMB.beta,
-                     KFAS = KFAS.beta)
-
-# parTbl <- data.frame(Parameter = "$\\beta$",
-#                      glmmTMB = as.numeric(fixef(object = m1.glmmTMB)$cond),
-#                      KFAS = as.numeric(coef(object = m1.out.KFAS, last = TRUE)[1]))
-
+parTbl <- data.frame(Parameter = c("$\\beta$", "$\\sigma$"),
+                     glmmTMB = c(glmmTMB.beta, glmmTMB.sigma),
+                     KFAS = c(KFAS.beta, NA_character_))
 
 kable(parTbl,
       digits = 2,
@@ -218,7 +226,7 @@ kable(parTbl,
 
 ```
 
-The smoothed estimate of the latent state estimated from `glmmTMB` and `KFAS` is visualized in Figure \@ref(fig:latentState).
+The smoothed estimate of the random effects, $u_t$, from `glmmTMB` and `KFAS` is visualized in Figure \@ref(fig:latentState). It can be seen that the estimate of $u_t$ is comparable using the two methods, but that `KFAS` consistently estimates $u_t$ lower than `glmmTMB`. This is likely because `KFAS` estimated $\beta$ to be a bit higher than `glmmTMB` and that the correlation between these two parameter estimates are rather high. Additionally, it is noted that as $u_t>0$ the intensity is above the average intensity, and the number of new hospital admissions is above the estimated average, while as $u_t<0$ the opposite is true. The signal is connected to the expected value via the log-link function. Thus the number of new hospital admissions, $h_t$, increases exponentially with $u_t$.
 
 (ref:latentState) Smoothed estimates of the latent states from `glmmTMB` and `KFAS`.
 
@@ -226,33 +234,67 @@ The smoothed estimate of the latent state estimated from `glmmTMB` and `KFAS` is
 knitr::include_graphics("./../reports/figures/latent_state_plot.png")
 ```
 
-In Figure \@ref(fig:admittedPred) the total number of new hospitals admissions in Denmark is visualized together with the smoothed estimates from `glmmTMB` and `KFAS`.
 
-```{r admittedPred, fig.cap="Total number of new hospital admissions in Denmark with smoothed estimates from glmmTMB and KFAS."}
+In Figure \@ref(fig:admittedPred) the smoothed estimates from `glmmTMB` and `KFAS` of the total number of new hospitals admissions in Denmark is visualized. There are no observable difference between the two implementations of the model.
+
+(ref:admittedPred) Smoothed estimates from `glmmTMB` and `KFAS` of the total number of new hospital admissions in Denmark.
+
+```{r admittedPred, fig.cap="(ref:admittedPred)"}
 knitr::include_graphics("./../reports/figures/admitted_pred_plot.png")
+```
+
+Diagnostic plots of the one-step prediction residuals for the total number of new hospital admissions in Denmark are visualized in Figure \@ref(fig:diagnosticRes). Overall the plots hint that the model can be improved. In A) and B) a significant auto-correlation in the residuals are detected. This is likely caused by the increased variance in the number of new admissions during the Covid-19 waves. The two lower plots, C) and D), indicate heavy tailed residuals.
+
+(ref:diagnosticRes) Diagnostic plots of the observed number of new hospital admissions in a specific regions minus the predicted number of new hospital admissions using `glmmTMB` and `KFAS`. A) Time series of the residuals, B) Auto-correlation function of the residuals, C) Histogram of the residuals, and D) Quantile-Quantile plot of the residuals.
+
+```{r diagnosticRes, fig.cap="(ref:diagnosticRes)"}
+knitr::include_graphics("./../reports/figures/diagnostic_residuals.png")
 ```
 
 ## Estimating the number of new hospital admissions in Denmark grouped by region
 
-(ref:parTblReg) This and that
-
-```{r parameterTableReg}
+```{r intensitiesReg}
 
 glmmTMB.reg.summary <- summary(m2.glmmTMB)
+beta.tot <- glmmTMB.reg.summary$coefficients$cond[,1]
 
-glmmTMB.reg.beta <- paste0(round(glmmTMB.reg.summary$coefficients$cond[,1],digits)," (",
+glmmTMB.reg.beta <- paste0(round(beta.tot,digits)," (",
                            round(glmmTMB.reg.summary$coefficients$cond[,2],digits),")")
 
-KFAS.reg.beta <- paste0(round(as.numeric(coef(object = m2.out.KFAS, last = TRUE)[1:6]), digits),
+beta.hov <- beta.tot[1]
+beta.hov.round <- round(beta.hov,digits)
+
+beta.hov.perc <- round(exp(beta.hov)/sum(exp(beta.tot)), digits)*100
+
+glmmTMB.reg.sigma <- paste0(round(attr(x = glmmTMB.reg.summary$varcor$cond$region, which = "stddev")[1],digits))
+
+KFAS.tot <- as.numeric(coef(object = m2.out.KFAS, last = TRUE)[1:6])
+KFAS.hov <- KFAS.tot[1]
+KFAS.hov.round <- round(KFAS.hov,digits)
+
+KFAS.hov.perc <- round(exp(KFAS.hov)/sum(exp(KFAS.tot)), digits)*100
+
+KFAS.reg.beta <- paste0(round(KFAS.tot, digits),
                     " (", round(sqrt(diag(m2.out.KFAS$V[,,n])),digits)[1:6],")")
 
-parTblReg <- data.frame(Parameter = paste0("$\\beta_",1:6,"$"),
-                        glmmTMB = glmmTMB.reg.beta,
-                        KFAS = KFAS.reg.beta)
 
-# parTblReg <- data.frame(Parameter = paste0("$\\beta_",1:6,"$"),
-#                         glmmTMB = as.numeric(fixef(object = m2.glmmTMB)$cond),
-#                         KFAS = as.numeric(coef(object = m2.out.KFAS, last = TRUE)[1:6]))
+
+```
+
+In this section the GLMM given in \@ref(eq:1st) and \@ref(eq:2nd) is extended, such that the individual regions are modeled. Hence, the fixed effect parameter, $\mathbf{\beta}$, is a 6-dimensional vector, $\mathbf{\beta}^T=\big[\beta_\text{Hov}, \beta_\text{Mid},\beta_\text{Nor},\beta_\text{Sjæ},\beta_\text{Syd},\beta_\text{Uke}\big]$, the random effects vary independently for each region, $u_t^{r}$,  $r=\big[\text{Hov, Mid, Nor, Sjæ, Syd, Uke}]$. The same white noise process, $e\sim N(0,\sigma^2)$, is assumed for all the regions.
+
+The average intensity, $\mathbf{\beta}$, estimates from `glmmTMB` and `KFAS` is gathered in Table \@ref(tab:parTblReg) together with the standard deviation of the random effect residuals, $\sigma$. It can be seen that the average intensity in *Hovedstaden*, $\beta_\text{Hov}$, is estimated to be `r beta.hov.round` and `r KFAS.hov.round` using `glmmTMB` and `KFAS` respectively, which is the highest among the regions and corresponds to between `r beta.hov.perc`-`r KFAS.hov.perc`\% of of the average number of new hospital admissions. This is expected, as the exposure term is fixed to 1 in this report, and the difference in the population size between the regions is therefore observed within the parameter estimates. 
+
+As before, the uncertainty on the parameter estimates is higher using `glmmTMB` than `KFAS`, but this time some of the estimates for the average intensity lies within one standard deviation of each other for both `glmmTMB` and `KFAS`, and for $\beta_\text{Nor}$ the maximum likelihood estimate is the same.
+
+(ref:parTblReg) Parameter estimates for the extended GLMM given in \@ref(eq:1st) and \@ref(eq:2nd) obtained using the `KFAS` and `glmmTMB` R packages. The standard deviation of the estimate is given in the parantheses. A method for calculating $\sigma$ in non-Gaussian models is not supported in `KFAS`.
+
+```{r parTblReg}
+
+reg <- c("Hov", "Mid", "Nor", "Sjæ", "Syd", "Uke")
+parTblReg <- data.frame(Parameter = c(paste0("$\\beta_\\text{",reg,"}$"), "$\\sigma$"),
+                        glmmTMB = c(glmmTMB.reg.beta,glmmTMB.reg.sigma),
+                        KFAS = c(KFAS.reg.beta, NA_character_))
 
 kable(parTblReg,
       digits = 2,
@@ -263,8 +305,9 @@ kable(parTblReg,
       linesep = "",
       escape = FALSE,
       caption = "(ref:parTblReg)")
-
 ```
+
+In Figure \@ref(fig:latentStateRegPred) the random effects, $u_t^r$, $r=\big[\text{Hov, Mid, Nor, Sjæ, Syd, Uke}]$ is visualized. Obviously, a correlation between the regions is observed, which is expected as individuals residing in one region is not contained within that region and can spread disease to other regions as well. Hence, when an outbreak happens in one region it can leak into the adjacent regions. 
 
 (ref:latentStateRegPred) Smoothed estimates of the latent states from `glmmTMB` and `KFAS`.
 
@@ -272,24 +315,17 @@ kable(parTblReg,
 knitr::include_graphics("./../reports/figures/latent_state_reg_plot.png")
 ```
 
-In Figure \@ref(fig:admittedRegPred) the total number of new hospitals admissions in Denmark grouped by region is visualized together with the smoothed estimates from `glmmTMB` and `KFAS`.
+In Figure \@ref(fig:admittedRegPred) the smoothed estimate from `glmmTMB` and `KFAS` of the total number of new hospitals admissions in Denmark grouped by region is visualized. The difference between the two implementations are indistinguishable.
 
-```{r admittedRegPred, fig.cap="Total number of new hospital admissions in Denmark grouped by region with smoothed estimates from glmmTMB and KFAS."}
+(ref:admittedRegPred) Smoothed estimates from `glmmTMB` and `KFAS` of the total number of new hospital admissions in Denmark grouped by region.
+
+```{r admittedRegPred, fig.cap="(ref:admittedRegPred)"}
 knitr::include_graphics("./../reports/figures/admitted_reg_pred_plot.png")
 ```
 
-## Residual analysis
+A time series of the residuals is visualized in Figure \@ref(fig:residualRegPred). It can be seen that the model is still not capable of describing the data sufficiently. The model struggles to predict the correct number of new hospital admissions when a wave of Covid-19 is occurring. Especially, this becomes apparent in *Hovedstaden*. Inspecting Figure \@ref(fig:residualRegPred) and Figure \@ref(fig:residualACFReg) from [Appendix A](#appA), it can be seen that there are still a significant auto-correlation in the residuals. Furthermore, the Quantile-Quantile plot in Figure \@ref(fig:residualQQReg) in [Appendix A](#appA) indicates that the residuals are heavy-tailed. Hence, the model can be further improved.
 
-Diagnostic plots of the one-step prediction residuals for the total number of new hospital admissions in Denmark are visualized in Figure \@ref(fig:diagnosticRes). Overall the plots hint that the model can be improved. In A) and B) a significant auto-correlation in the residuals are detected. This is likely caused by the increased variance in the number of new admissions during the Covid-19 waves. The two lower plots, C) and D), indicate heavy tailed residuals.
-
-(ref:diagnosticRes) Diagnostic plots of the in-sample one-step prediction residuals. A) Time series of the residuals, B) auto-correlation function of the residuals, C) Histogram of the residuals, and D) Qunatile-Quantile plot of the residuals.
-
-```{r diagnosticRes, fig.cap="(ref:diagnosticRes)"}
-knitr::include_graphics("./../reports/figures/diagnostic_residuals.png")
-```
-
-
-(ref:residualRegPred) Model residuals from `glmmTMB` and `KFAS`.
+(ref:residualRegPred) Time series of the observed number of new hospital admissions in a specific regions minus the predicted number of new hospital admissions using `glmmTMB` and `KFAS`.
 
 ```{r residualRegPred, fig.cap="(ref:residualRegPred)"}
 knitr::include_graphics("./../reports/figures/residual_reg_plot.png")
@@ -297,9 +333,14 @@ knitr::include_graphics("./../reports/figures/residual_reg_plot.png")
 
 # Discussion
 
-Write it later
+
+
+As observed in Figure \@ref(fig:admissionsReg) and later confirmed in Figure \@ref(fig:admittedRegPred) there is a clear correlation in the number of new hospital admissions between the regions. Intuitively, this makes sense as infected individuals can move freely between the regions, and spread the disease. Hence, a possible extension to the model could be to include a correlation between the regions.
 
 # Conclusion
+
+
+
 
 \newpage
 
@@ -309,26 +350,21 @@ Write it later
 
 # (APPENDIX) Appendix {-} 
 
-# Appendix A
+# Appendix A {#appA}
 
-(ref:residualHistReg) Write me
+(ref:residualHistReg) Histogram of the observed number of new hospital admissions in a specific regions minus the predicted number of new hospital admissions using `glmmTMB` and `KFAS`
 
 ```{r residualHistReg, fig.cap="(ref:residualRegPred)"}
 knitr::include_graphics("./../reports/figures/histogram_residual_reg_plot.png")
 ```
 
-# Appendix B
-
-
-(ref:residualQQReg) Write me
+(ref:residualQQReg) Quantile-Quantile plot of the observed number of new hospital admissions in a specific regions minus the predicted number of new hospital admissions using `glmmTMB` and `KFAS`.
 
 ```{r residualQQReg, fig.cap="(ref:residualQQReg)"}
 knitr::include_graphics("./../reports/figures/qq_residual_reg_plot.png")
 ```
 
-# Appendix C
-
-(ref:residualACFReg) Write me
+(ref:residualACFReg) Auto-correlation function of the observed number of new hospital admissions in a specific regions minus the predicted number of new hospital admissions using `glmmTMB` and `KFAS`.
 
 ```{r residualACFReg, fig.cap="(ref:residualACFReg)"}
 knitr::include_graphics("./../reports/figures/ACF_residual_reg_plot.png")

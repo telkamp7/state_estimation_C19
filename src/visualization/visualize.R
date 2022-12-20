@@ -65,6 +65,7 @@ mod.ranef <- newly_admitted %>%
 
 latent_state_plot <- ggplot(data = mod.ranef, mapping = aes(x = Dato, y = Ranef, colour = Model, linetype = Model)) +
   geom_line(linewidth = .8) +
+  geom_hline(yintercept = 0) +
   scale_color_brewer(palette = "Paired") +
   labs(x = "Date [days]", y = expression(paste("Random effect, ", u[t])))
 ggsave(plot = latent_state_plot,
@@ -224,6 +225,7 @@ mod.ranef.regional <- newly_admitted %>%
 # Latent state
 latent_state_reg_plot <- ggplot(data = mod.ranef.regional, aes(x = Dato, y = count, colour = Model, linetype = Model)) +
   geom_line(linewidth = .8) +
+  geom_hline(yintercept = 0) +
   facet_wrap(facets = vars(region)) +
   scale_color_brewer(palette = "Paired") +
   scale_x_date(name = "Date [Days]", date_breaks = "9 months", date_labels = "%Y-%m") +
